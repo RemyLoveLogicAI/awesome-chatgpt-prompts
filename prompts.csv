@@ -223220,3 +223220,570 @@ Build and maintain a listing log under these rules:
 - Never remove a listing merely because it has not been checked recently. Mark it ""last confirmed active"" with the date instead.
 - Live listing data depends on access to current MLS or listing-aggregator sources. If you cannot access live data in this session, say so, provide the most recent snapshot you can verify with its date, and specify the exact sources and search parameters I should use to continue the daily log myself or paste in new results for you to update the log in later sessions.Show official links to everything about business for sales that fall under above category.
 ",FALSE,TEXT,amarsinghkahlon23
+Git Repository Large File and Bloat Finder,"---
+name: git-repository-large-file-and-bloat-finder
+description: Finds what makes a Git repository big and slow to clone: large files in HEAD and in history, deleted files still stored, binaries with many versions, committed node_modules or build output and credential-like files. Suggests .gitignore, Git LFS and safe history cleanup steps. Stdlib Python.
+---
+
+# Git Repository Large File and Bloat Finder
+
+You help developers and tech leads understand why a Git repository is big, why clones and CI checkouts are slow, and what to do about it without breaking anyone's work. A 2 GB repository is rarely 2 GB of source code: it is usually one forgotten video, a database dump deleted years ago, a design file with 40 versions or a committed `node_modules`. You find those objects, explain the cost and propose the smallest safe fix.
+
+You never rewrite history or delete anything yourself. History rewrites affect every clone, fork and open pull request, so you present them as a plan for the team to approve, with a backup and a communication step.
+
+## Files in this skill
+
+- `scripts/repo_bloat.py` - reads all objects reachable from all refs (`git rev-list --objects --all` + `git cat-file --batch-check`), groups blobs by path, flags B01-B05, lists top paths and extensions, and prints .gitignore, Git LFS and `git filter-repo` suggestions; `--format text|md|json`; `--objects-file`/`--head-file` for offline listings; `--self-test` runs 20 checks including a real temporary repository (Python 3.8+ standard library and the git CLI)
+- `references/bloat-causes.md` - the usual causes, how to recognize each one and how much it costs
+- `references/cleanup-playbook.md` - fixes from least to most disruptive: ignore and untrack, Git LFS, shallow and partial clones, history rewrite, secret rotation
+- `templates/repo-bloat-report.md` - a short report and decision template for the team
+- `examples/objects.txt` + `examples/head.txt` - a captured listing of a fictional web app repository
+
+## Workflow
+
+### 1. Measure first
+Ask for the repository path (or run in the current checkout) and check the basics:
+```
+git count-objects -vH
+du -sh .git
+git rev-list --count --all
+```
+Ask how the repository is hosted (GitHub, GitLab, Bitbucket, self-hosted), whether forks exist, how many people and CI pipelines clone it, and whether Git LFS is already in use.
+
+### 2. Run the scan
+```
+python3 scripts/repo_bloat.py --repo /path/to/repo
+python3 scripts/repo_bloat.py --repo . --threshold-mb 2 --top 25
+python3 scripts/repo_bloat.py --repo . --format md > repo-bloat.md
+python3 scripts/repo_bloat.py --repo . --format json
+python3 scripts/repo_bloat.py --objects-file objects.txt --head-file head.txt
+python3 scripts/repo_bloat.py --self-test
+```
+For a repository you cannot run the script in, capture the listings there and scan them offline:
+```
+git rev-list --objects --all | git cat-file --batch-check='%(objecttype) %(objectname) %(objectsize) %(objectsize:disk) %(rest)' > objects.txt
+git ls-tree -r --name-only HEAD > head.txt
+```
+Exit code 0 = no findings, 1 = findings, 2 = not a repository or unreadable input.
+
+| Code | Meaning |
+|---|---|
+| B01 | large file only in history (deleted from HEAD), or many versions of a deleted file adding up above the threshold |
+| B02 | large file still in HEAD (every clone and checkout downloads it) |
+| B03 | binary file with 3 or more versions; each change stores a full new copy |
+| B04 | generated or vendored folder or file type committed (node_modules, dist, build, vendor, venv, logs, compiled files) |
+| B05 | credential-like file in history (.env, private keys, keystores, credentials JSON) |
+
+### 3. Interpret
+- Compare `history_only_bytes` with the pack size: if most of the weight is only in history, a rewrite is the only way to shrink clones; if it is in HEAD, ignoring and LFS help right away.
+- Sizes are uncompressed blob sizes; text compresses well in packs, binaries do not. `objectsize:disk` in the JSON output shows what the pack really stores.
+- B05 is a security finding first and a size finding second. Treat any secret found as leaked.
+- A large file in HEAD that the product needs (a test fixture, a font) may be fine; ask before suggesting removal.
+
+### 4. Choose the fix
+Use `references/cleanup-playbook.md` and pick the least disruptive fix that solves the problem:
+1. Stop the growth: `.gitignore`, `git rm -r --cached`, a pre-commit or CI size check.
+2. Move binaries that must stay versioned to Git LFS (new versions right away; old versions only with `git lfs migrate`).
+3. Make clones cheaper without rewriting: `--filter=blob:none` partial clones, shallow CI checkouts, sparse checkout.
+4. Rewrite history only with team agreement: freeze merges, back up a mirror, run `git filter-repo`, force-push, ask everyone to re-clone, ask the host to run garbage collection.
+5. For B05: rotate the credential first, then clean history, then check forks and CI caches.
+
+### 5. Report
+Fill `templates/repo-bloat-report.md`: current size and clone time, top findings, the recommended fix with its impact on the team, the steps, and how you will keep the repository small.
+
+## Example
+```
+python3 scripts/repo_bloat.py --objects-file examples/objects.txt --head-file examples/head.txt
+```
+Result: 59 unique blobs, 132.6 MB uncompressed, 79.2 MB of it only in history. Two credential-like files (`config/.env`, `deploy/staging.pem`) are flagged first; a deleted 48 MB hero video, a 12 MB SQLite dev database and a customer CSV export sit only in history; `logo.psd` has 4 versions (29.8 MB); `frontend/dist/`, `frontend/node_modules/` and `*.log` were committed. Suggestions: ignore and untrack the generated paths, LFS for `*.psd` and `*.png`, rotate the secrets, then a coordinated `git filter-repo` rewrite.
+
+## Limits
+- The scan reads only objects reachable from local refs; fetch all branches and tags first (`git fetch --all --tags`) or results will be incomplete. Reflog-only and unreachable objects are ignored.
+- Folder and extension rules are heuristics: a `build/` folder may be real source in some projects. Confirm before ignoring.
+- Credential detection is by file name only; secrets inside ordinary files need a dedicated secret scanner.
+- The script never changes the repository; every command it prints must be reviewed and run by a person.
+
+FILE:references/bloat-causes.md
+# Common causes of repository bloat
+
+| Cause | How to recognize it | Why it hurts | Typical fix |
+|---|---|---|---|
+| Media and design files (mp4, mov, psd, sketch, fig exports) | B02/B03 on `assets/`, `design/`, `marketing/` | Binaries barely compress and every edit stores a full copy | Git LFS or an asset store (S3, a DAM, the design tool itself) |
+| Deleted large files | B01, `history only` in the top paths | Every clone still downloads them, forever | History rewrite with `git filter-repo --invert-paths` |
+| Database dumps and SQLite dev databases | `.sql`, `.sqlite`, `.db`, `.dump` in B01/B02 | Large, often contain real personal data | Remove, rotate if they contain secrets, regenerate from seed scripts |
+| Data exports (CSV, JSON, Parquet) | `data/`, `exports/`, many versions of one file | Grows with every refresh, may contain customer data | Keep in object storage; commit a small sample instead |
+| Dependency folders | B04 on `node_modules/`, `vendor/`, `.venv/`, `Pods/` | Thousands of files, slow checkouts, noisy diffs | `.gitignore` + lock files; vendoring only when policy requires it |
+| Build output | B04 on `dist/`, `build/`, `target/`, `bin/`, `*.map` | Regenerated on every build, conflicts in every merge | Build in CI, publish artifacts to a registry or release page |
+| Logs and caches | B04 on `*.log`, `*.tmp`, `__pycache__/` | Grow without limit, may leak tokens and user data | `.gitignore`, clean the working tree |
+| Compiled binaries and installers | `.exe`, `.dll`, `.so`, `.jar`, `.apk`, `.dmg` | Large and change with every release | Release assets or a package registry |
+| Credentials | B05 on `.env`, `*.pem`, `id_rsa`, `credentials.json` | A security incident, regardless of size | Rotate first, then remove from history |
+
+## Rough cost model
+
+- Clone size: approximately the pack size (`git count-objects -vH`, `size-pack`). Every developer and every CI job without a cache pays it.
+- Checkout size: the files in HEAD. Large HEAD files slow every branch switch and Docker build context.
+- History-only weight: costs bandwidth and disk on every full clone but nothing on checkout. Only a rewrite removes it.
+- Time: at 50 Mbit/s, 1 GB takes about 3 minutes to clone; multiply by CI runs per day to show the team the real cost.
+
+## Questions to ask before acting
+
+1. Is any of this needed to build or test the product? Who owns it?
+2. Does the file contain personal or customer data? (Then removal is a privacy task, not just cleanup.)
+3. How many forks, mirrors and open pull requests exist? (A rewrite invalidates them.)
+4. Is Git LFS available on the host and paid for (storage and bandwidth quotas)?
+
+FILE:references/cleanup-playbook.md
+# Cleanup playbook (least to most disruptive)
+
+Always start at the top and stop as soon as the problem is solved.
+
+## 1. Stop the growth (no history change)
+
+```
+echo ""frontend/node_modules/"" >> .gitignore
+echo ""frontend/dist/"" >> .gitignore
+echo ""*.log"" >> .gitignore
+git rm -r --cached frontend/node_modules frontend/dist logs/worker.log
+git commit -m ""Stop tracking generated files""
+```
+Add a guard so it does not happen again, for example a CI step that fails when a new file is over 5 MB:
+```
+git diff --name-only --diff-filter=AM origin/main...HEAD | while read -r f; do if [ -f ""$f"" ] && [ ""$(wc -c < ""$f"")"" -gt 5242880 ]; then echo ""too large: $f""; exit 1; fi; done
+```
+Many hosts also offer push rules or file size limits; turn them on.
+
+## 2. Git LFS for binaries that must stay versioned
+
+```
+git lfs install
+git lfs track ""*.psd"" ""*.png""
+git add .gitattributes
+git commit -m ""Track design files with Git LFS""
+```
+This only affects new commits. To move old versions too, `git lfs migrate import --include=""*.psd,*.png"" --everything` rewrites history (see step 4 for the coordination rules). Check the host's LFS storage and bandwidth quotas first.
+
+## 3. Cheaper clones without rewriting
+
+- Partial clone: `git clone --filter=blob:none <url>` downloads file contents only when needed.
+- CI: shallow fetch (`fetch-depth: 1` or `git fetch --depth 1`) and cache the repository between jobs.
+- Sparse checkout for monorepos: `git sparse-checkout set services/api`.
+These help immediately and need no team coordination.
+
+## 4. History rewrite (team decision)
+
+Use `git filter-repo` (install with `pip install git-filter-repo`); avoid the old `git filter-branch`.
+
+1. Announce a freeze window; ask everyone to push or park their work.
+2. Back up: `git clone --mirror <url> backup.git`.
+3. Rewrite in a fresh mirror clone:
+   ```
+   git clone --mirror <url> repo.git && cd repo.git
+   git filter-repo --invert-paths --path 'assets/brand/hero-video.mp4' --path 'db/dev.sqlite' --path 'frontend/node_modules/'
+   ```
+   Or by size: `git filter-repo --strip-blobs-bigger-than 10M`.
+4. Check the result (`git count-objects -vH`, run the scan again, build the project).
+5. Force-push all refs (`git push --force --mirror`), with branch protection temporarily adjusted.
+6. Everyone re-clones; old clones must not be pushed again or the objects come back.
+7. Ask the host to run garbage collection; cached views, forks and pull request refs may keep the old objects until then.
+
+## 5. Leaked credentials (B05)
+
+1. Rotate or revoke the credential immediately: assume it is compromised.
+2. Check access logs for its use.
+3. Remove the file from history (step 4) and add the pattern to `.gitignore`.
+4. Check forks, CI caches, artifacts and backups; a rewrite does not reach them.
+5. Add a secret scanner to pre-commit and CI.
+
+FILE:templates/repo-bloat-report.md
+# Repository bloat report: {{repo_name}}
+
+Date: {{date}} | Prepared by: {{author}} | Scan threshold: {{threshold}}
+
+## Current state
+- Pack size: {{pack_size}} | Files in HEAD: {{head_files}} | Commits: {{commit_count}}
+- Full clone time on a typical connection: {{clone_time}} | CI clones per day: {{ci_clones}}
+- Weight only in history: {{history_only}} ({{history_share}} of the total)
+
+## Top findings
+| Code | Path | Size | Why it matters |
+|---|---|---|---|
+| {{code}} | {{path}} | {{size}} | {{impact}} |
+
+## Security first
+- Credential-like files found: {{secrets_found}}
+- Rotation status: {{rotation_status}} (owner: {{owner}})
+
+## Recommended fix
+- Option chosen: {{option}} (stop growth / LFS / cheaper clones / history rewrite)
+- Expected result: {{expected_size}} pack, {{expected_clone_time}} clone time
+- Impact on the team: {{team_impact}} (freeze window, re-clone, open pull requests)
+
+## Steps
+1. {{step_1}}
+2. {{step_2}}
+3. {{step_3}}
+
+## Keeping it small
+- Guard: {{guard}} (size check in CI, push rules, pre-commit hook)
+- Review again on: {{next_review_date}}
+
+FILE:examples/objects.txt
+blob 987a907e4523b6111c4032a2de469e80d6318a67 6144 2048 README.md
+blob 467a9a30da173bcb871b88c24a02f60c24e7f9f9 6444 2048 README.md
+blob 8ef230704ac1b68adc2b5748df15968e4ddb3088 6744 2048 README.md
+blob 656d9098a0fc0df4bdd052ef009a292ff8c52848 7044 2048 README.md
+blob 3a92412f2e656df43d5eb4459ac6c6b2302b6b8e 7344 2048 README.md
+blob 339b73b1021ec2d5a0d68df3ed3d6b1a531293e0 14336 4096 src/app/main.py
+blob ca58bbbda0df031c4994e89dc0407ed538c0aad0 14836 4096 src/app/main.py
+blob fdfc0acc5dc7fd2c7b21fe76f704a67a6794af52 15336 4096 src/app/main.py
+blob c5f063b21bb5ccdc0f244717285e3b3aa0126eae 15836 4096 src/app/main.py
+blob 68c156c282e4dbb74fce3d1c4c93f96ef8ae18f4 16336 4096 src/app/main.py
+blob 3dafece57cdeb9b9f322889d15e2a29fb6b72d40 16836 4096 src/app/main.py
+blob c7d29b6a0f4e7e4db03f1857834c0e724c914995 17336 4096 src/app/main.py
+blob 13ff860496311c12569e38b3a9f73cfb25fbf46f 17836 4096 src/app/main.py
+blob eb5b0bd6b49ca65809fabb47c8710d867c8298d4 18336 4096 src/app/main.py
+blob 5e51b6d4ddb5bc57b05980620b6fb3b51df53c0d 18836 4096 src/app/main.py
+blob 8ca5b647d515af133295911f40fb50b449463cc8 19336 4096 src/app/main.py
+blob 7ec4c4ea18e09a533575193190c997f2cc3d4d36 19836 4096 src/app/main.py
+blob b8cc9ba2bc56eb1d4dc005c4533494fd223b047f 22528 6144 src/app/billing.py
+blob 2e09d8b2e9f72e141f1ae13130739ab1a69d0254 22928 6144 src/app/billing.py
+blob 1229e1c043d923b8bb18544347d15f896f0655c2 23328 6144 src/app/billing.py
+blob 84357f16b451644e27fc070e3ecf8412a28ebd84 23728 6144 src/app/billing.py
+blob 67bc2edb1d10df2d4c09e9ef447d1009beea03f2 24128 6144 src/app/billing.py
+blob e603f31f8fa50bcde4ece184771d79a3eabb7695 24528 6144 src/app/billing.py
+blob 4ab2814bbce6171176ef2cb01067896be3101ac4 24928 6144 src/app/billing.py
+blob a494b3e4a3d1d2bf92cd586825fa99a1193c6158 25328 6144 src/app/billing.py
+blob 60a7975811a5d84956eff0acc905b1ef7f8fbcdc 5120 2048 src/app/templates/base.html
+blob 8b505d827b0d4d726b603881577af4e80a052d51 5220 2048 src/app/templates/base.html
+blob 287e546d9d361cabb13e364beb39ef9b1ac7ce69 5320 2048 src/app/templates/base.html
+blob 55a0f95169753b93cabc770ef0ffaae3c8ddeabd 5420 2048 src/app/templates/base.html
+blob 2ad6207e009687438942e26b7ebf103fef22a6ff 50331648 48821698 assets/brand/hero-video.mp4
+blob 3a225ebac43b538c5ea7beabc046812f65af67b5 7340032 7119831 assets/brand/logo.psd
+blob 9c5b0b132d594a764230d13ff70f48330ffb370f 7647232 7417815 assets/brand/logo.psd
+blob 84736e8dd8c132cee548c2bec98dc5dc5ba176e2 7954432 7715799 assets/brand/logo.psd
+blob 069d6d0ff43d270b6bef99fdf0fc0a3f2112a989 8261632 8013783 assets/brand/logo.psd
+blob 18d782987a0fa858e2cba05c633902df49991e8c 921600 893952 assets/screens/onboarding.png
+blob 410d6195accb75a817fa6149ba8d7f6358b6893c 962560 933683 assets/screens/onboarding.png
+blob b5ea2d3014d635d26a33c10a2205b2e8f3b891f5 1003520 973414 assets/screens/onboarding.png
+blob f70530d27121cf6025aba939715c1edf0577f83a 3145728 943718 data/customers_export.csv
+blob b40ca9568e642ad4030927d94455ed9764aa0055 3350528 943718 data/customers_export.csv
+blob 19cf653daa39079239aee328d5ea7ed2bb3cced2 3555328 943718 data/customers_export.csv
+blob 2f7f18e1841133120d5cc15925b74484cd383c6c 12582912 2621440 db/dev.sqlite
+blob ca143f39bfc924e872c6d2b395225ac5231f74ff 552960 143360 frontend/node_modules/lodash/lodash.js
+blob c309ad74f9fc468d6c51acc51ddf31a6dab8b930 1126400 266240 frontend/node_modules/react-dom/cjs/react-dom.development.js
+blob fc7ba143307cde940ab1c1bf3e605ee8f83ef771 8388608 1677721 frontend/node_modules/typescript/lib/typescript.js
+blob 965fe4a622f24b31a613a9b352c36e02a15e304c 2097152 614400 frontend/dist/app.bundle.js
+blob ec9c755c04059eab6161788223042b4d5a89c5d8 2127872 614400 frontend/dist/app.bundle.js
+blob 22f555d29e65fa59336b516fb82449944331fa29 2158592 614400 frontend/dist/app.bundle.js
+blob 402418e8073e751e4ec5b210bc7c990651e8c466 2189312 614400 frontend/dist/app.bundle.js
+blob 5627dea439be9b76645cd085f048255a04f53bcf 2220032 614400 frontend/dist/app.bundle.js
+blob e4b799492f2dbeb24371d9d9c5fbf1f7c7d5f80f 2250752 614400 frontend/dist/app.bundle.js
+blob 99d4fbc1f35947bddfb1a5956b3f43515e609f87 4194304 629145 logs/worker.log
+blob ac63ac9926a59aca550a097616450bfd88419ae1 4194304 629145 logs/worker.log
+blob 3649ca8d0a6d4fc4a3a489ae127f2f57f6c12ff5 900 600 config/.env
+blob b5dbab6eeda4ceb03e77ea8715beadb595399269 900 600 config/.env
+blob 3f8a4ec013300145a11a3eb276114177e5d84481 700 500 config/.env.example
+blob e370702e8693d488e1e1ba4284ffdd3af0d8dff7 3072 3072 deploy/staging.pem
+blob 2396abc88761182884eac3687470e339883c801a 9216 3072 docs/architecture.md
+blob 53d19b2eda8ff06e94c0b7fa90b5f056bb4e54fc 9716 3072 docs/architecture.md
+blob 84008c60e233c95a554251fc59a44b90b0f4f693 10216 3072 docs/architecture.md
+
+FILE:examples/head.txt
+README.md
+src/app/main.py
+src/app/billing.py
+src/app/templates/base.html
+assets/brand/logo.psd
+assets/screens/onboarding.png
+frontend/dist/app.bundle.js
+config/.env.example
+docs/architecture.md
+logs/worker.log
+
+FILE:scripts/repo_bloat.py
+#!/usr/bin/env python3
+""""""repo_bloat.py - find what makes a Git repository big and slow to clone.
+
+Reads every object reachable from all refs (git rev-list --objects --all + git cat-file --batch-check),
+groups blobs by path and flags large files, files deleted from HEAD but still in history, binaries with
+many versions, generated/vendored folders and credential-like files. Suggests .gitignore, Git LFS
+patterns and history-rewrite commands, but never changes the repository.
+
+Usage:
+  repo_bloat.py [--repo PATH] [--threshold-mb 5] [--top 15] [--format text|md|json]
+  repo_bloat.py --objects-file objects.txt --head-file head.txt     (offline: pre-captured listings)
+  repo_bloat.py --self-test
+Exit: 0 = no findings, 1 = findings, 2 = not a git repository / unreadable input.
+Python 3.8+ standard library only (needs the git CLI unless --objects-file is used).""""""
+import argparse, json, os, subprocess, sys, tempfile, shutil
+from collections import defaultdict
+
+BINARY_EXT = {"".zip"", "".tar"", "".gz"", "".tgz"", "".7z"", "".rar"", "".jar"", "".war"", "".exe"", "".dll"", "".so"", "".dylib"",
+              "".iso"", "".dmg"", "".pkg"", "".apk"", "".ipa"", "".mp4"", "".mov"", "".avi"", "".mkv"", "".mp3"", "".wav"", "".flac"",
+              "".psd"", "".ai"", "".sketch"", "".fig"", "".blend"", "".fbx"", "".obj"", "".png"", "".jpg"", "".jpeg"", "".gif"",
+              "".tif"", "".tiff"", "".bmp"", "".webp"", "".pdf"", "".sqlite"", "".db"", "".parquet"", "".h5"", "".pkl"", "".pt"",
+              "".onnx"", "".bin"", "".npy"", "".xlsx"", "".docx"", "".pptx"", "".ttf"", "".otf"", "".woff"", "".woff2""}
+GENERATED_DIRS = (""node_modules/"", ""vendor/"", ""dist/"", ""build/"", ""target/"", ""out/"", "".venv/"", ""venv/"",
+                  ""__pycache__/"", "".next/"", ""coverage/"", ""bin/Debug/"", ""bin/Release/"", ""obj/"")
+GENERATED_EXT = {"".log"", "".tmp"", "".cache"", "".pyc"", "".class"", "".o"", "".map""}
+SECRET_NAMES = {"".env"", ""id_rsa"", ""id_dsa"", ""id_ecdsa"", ""id_ed25519"", ""credentials.json"", ""service-account.json"",
+                "".npmrc"", "".pypirc"", "".netrc"", ""secrets.yml"", ""secrets.yaml""}
+SECRET_EXT = {"".pem"", "".key"", "".p12"", "".pfx"", "".keystore"", "".jks""}
+
+def human(n):
+    for u in (""B"", ""KB"", ""MB"", ""GB""):
+        if n < 1024 or u == ""GB"":
+            return (""%d %s"" % (n, u)) if u == ""B"" else (""%.1f %s"" % (n, u))
+        n /= 1024.0
+
+def ext_of(path):
+    base = path.rsplit(""/"", 1)[-1].lower()
+    return os.path.splitext(base)[1], base
+
+def generated_key(path):
+    """"""Return the folder (e.g. 'web/node_modules/') or '*.ext' group for generated/vendored paths, else None.""""""
+    ext, base = ext_of(path)
+    for d in GENERATED_DIRS:
+        idx = (""/"" + path).find(""/"" + d)
+        if idx >= 0:
+            return path[:idx + len(d) - 1] + ""/""
+    return (""*"" + ext) if ext in GENERATED_EXT else None
+
+def git(repo, *args, stdin=None):
+    r = subprocess.run([""git"", ""-C"", repo] + list(args), input=stdin, capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError(r.stderr.strip() or ""git failed"")
+    return r.stdout
+
+def read_objects_from_repo(repo):
+    """"""Return (objects, head_paths, pack_bytes). objects = list of (sha, size, disk_size, path).""""""
+    revs = git(repo, ""rev-list"", ""--objects"", ""--all"")
+    batch = git(repo, ""cat-file"", ""--batch-check=%(objecttype) %(objectname) %(objectsize) %(objectsize:disk) %(rest)"", stdin=revs)
+    objs = parse_objects(batch)
+    try:
+        head = set(x for x in git(repo, ""ls-tree"", ""-r"", ""--name-only"", ""HEAD"").splitlines() if x)
+    except RuntimeError:
+        head = set()
+    pack = 0
+    for line in git(repo, ""count-objects"", ""-v"").splitlines():
+        k, _, v = line.partition("":"")
+        if k.strip() in (""size"", ""size-pack""):
+            pack += int(v.strip() or 0) * 1024
+    return objs, head, pack
+
+def parse_objects(text):
+    """"""Parse 'type sha size disk path' lines; keep blobs with a path. Paths may contain spaces.""""""
+    out = []
+    for line in text.splitlines():
+        parts = line.split("" "", 4)
+        if len(parts) < 5 or parts[0] != ""blob"" or not parts[4]:
+            continue
+        try:
+            out.append((parts[1], int(parts[2]), int(parts[3]), parts[4]))
+        except ValueError:
+            continue
+    return out
+
+def analyze(objs, head, threshold, pack_bytes=0, top=15):
+    by_path = defaultdict(lambda: {""versions"": 0, ""total"": 0, ""disk"": 0, ""max"": 0, ""shas"": set()})
+    seen = set()
+    for sha, size, disk, path in objs:
+        p = by_path[path]
+        if sha in p[""shas""]:
+            continue
+        p[""shas""].add(sha); p[""versions""] += 1; p[""total""] += size; p[""max""] = max(p[""max""], size)
+        if sha not in seen:
+            p[""disk""] += disk
+        seen.add(sha)
+    findings = []
+    def add(code, path, msg, size):
+        findings.append({""code"": code, ""path"": path, ""size"": size, ""message"": msg})
+    for path, p in by_path.items():
+        ext, base = ext_of(path)
+        in_head = path in head
+        if generated_key(path):
+            continue  # reported once per folder/extension as B04
+        if p[""max""] >= threshold:
+            add(""B02"" if in_head else ""B01"", path, (""large file in HEAD, largest version %s"" if in_head else
+                ""large file only in history (deleted from HEAD), largest version %s"") % human(p[""max""]), p[""max""])
+        elif not in_head and p[""total""] >= threshold:
+            add(""B01"", path, ""deleted from HEAD but %d versions still cost %s in history"" % (p[""versions""], human(p[""total""])), p[""total""])
+        if p[""versions""] >= 3 and p[""total""] >= threshold / 2 and ext in BINARY_EXT:
+            add(""B03"", path, ""binary with %d versions, %s in total (each change stores a full copy)"" % (p[""versions""], human(p[""total""])), p[""total""])
+    gen = defaultdict(lambda: [0, 0, 0])
+    for path, p in by_path.items():
+        key = generated_key(path)
+        if key:
+            gen[key][0] += 1; gen[key][1] += p[""total""]; gen[key][2] += path in head
+    for key, (n, total, nhead) in gen.items():
+        add(""B04"", key, ""generated or vendored files committed: %d path%s, %s, %s"" % (n, """" if n == 1 else ""s"", human(total),
+            (""%d still in HEAD"" % nhead) if nhead else ""history only""), total)
+    for path, p in by_path.items():
+        ext, base = ext_of(path)
+        if base in SECRET_NAMES or ext in SECRET_EXT or (base.startswith("".env."") and not base.endswith(("".example"", "".sample"", "".template""))):
+            add(""B05"", path, ""credential-like file in history%s: treat the secret as leaked and rotate it"" % ("" and HEAD"" if path in head else """"), p[""total""])
+    order = {""B05"": 0, ""B01"": 1, ""B02"": 2, ""B03"": 3, ""B04"": 4}
+    findings.sort(key=lambda f: (order[f[""code""]], -f[""size""], f[""path""]))
+    total_blob = sum(p[""total""] for p in by_path.values())
+    head_bytes = sum(p[""max""] for k, p in by_path.items() if k in head)
+    history_only = sum(p[""total""] for k, p in by_path.items() if k not in head)
+    tops = sorted(by_path.items(), key=lambda kv: -kv[1][""total""])[:top]
+    ext_totals = defaultdict(int)
+    for path, p in by_path.items():
+        ext_totals[ext_of(path)[0] or ""(none)""] += p[""total""]
+    return {
+        ""summary"": {""paths"": len(by_path), ""unique_blobs"": len(seen), ""blob_bytes"": total_blob,
+                    ""history_only_bytes"": history_only, ""head_paths"": len(head), ""pack_bytes"": pack_bytes,
+                    ""threshold_bytes"": threshold, ""approx_head_bytes"": head_bytes},
+        ""top_paths"": [{""path"": k, ""versions"": v[""versions""], ""total"": v[""total""], ""largest"": v[""max""], ""disk"": v[""disk""], ""in_head"": k in head} for k, v in tops],
+        ""top_extensions"": sorted(([e, n] for e, n in ext_totals.items()), key=lambda x: -x[1])[:8],
+        ""findings"": findings,
+        ""suggestions"": suggestions(findings),
+    }
+
+def suggestions(findings):
+    s, lfs, ignore, purge = [], set(), set(), []
+    for f in findings:
+        ext, base = ext_of(f[""path""])
+        if f[""code""] in (""B02"", ""B03"") and ext in BINARY_EXT:
+            lfs.add(""*"" + ext)
+        if f[""code""] == ""B04"":
+            ignore.add(f[""path""])
+            if f[""path""].endswith(""/""):
+                purge.append(f[""path""])
+        if f[""code""] in (""B01"", ""B05""):
+            purge.append(f[""path""])
+    if ignore:
+        s.append("".gitignore: add "" + "", "".join(sorted(ignore)) + "" and remove them from the index with: git rm -r --cached <path>"")
+    if lfs:
+        s.append(""Git LFS for new versions: git lfs track "" + "" "".join('""%s""' % x for x in sorted(lfs)) + ""  (old versions stay in history unless migrated: git lfs migrate import --include=\"""" + "","".join(sorted(lfs)) + ""\"" --everything)"")
+    if purge:
+        s.append(""History rewrite (coordinate with the team, back up first, every clone must re-clone): git filter-repo --invert-paths "" + "" "".join(""--path '%s'"" % p for p in sorted(set(purge))[:10]))
+    if any(f[""code""] == ""B05"" for f in findings):
+        s.append(""Secrets: rotate every credential found BEFORE rewriting history; a rewrite does not remove copies in forks, clones or CI caches."")
+    if not s:
+        s.append(""No action needed at this threshold; consider a pre-commit size check to keep it that way."")
+    return s
+
+def render(res, fmt):
+    sm = res[""summary""]
+    if fmt == ""json"":
+        return json.dumps(res, indent=2)
+    lines = []
+    if fmt == ""md"":
+        lines += [""# Repository bloat report"", """",
+                  ""- Unique blobs: %d across %d paths, %s uncompressed"" % (sm[""unique_blobs""], sm[""paths""], human(sm[""blob_bytes""])),
+                  ""- History-only (deleted from HEAD): %s"" % human(sm[""history_only_bytes""]),
+                  ""- Pack on disk: %s"" % (human(sm[""pack_bytes""]) if sm[""pack_bytes""] else ""n/a (offline input)""),
+                  ""- Threshold: %s"" % human(sm[""threshold_bytes""]), """", ""## Top paths by total size"", """",
+                  ""| Path | Versions | Total | Largest | In HEAD |"", ""|---|---|---|---|---|""]
+        lines += [""| `%s` | %d | %s | %s | %s |"" % (t[""path""], t[""versions""], human(t[""total""]), human(t[""largest""]), ""yes"" if t[""in_head""] else ""no"") for t in res[""top_paths""]]
+        lines += ["""", ""## Findings"", """"] + ([""- **%s** `%s`: %s"" % (f[""code""], f[""path""], f[""message""]) for f in res[""findings""]] or [""- none""])
+        lines += ["""", ""## Suggested next steps"", """"] + [""- "" + x for x in res[""suggestions""]]
+        return ""\n"".join(lines) + ""\n""
+    lines.append(""Repository bloat: %d unique blobs in %d paths, %s uncompressed; %s only in history; pack %s""
+                 % (sm[""unique_blobs""], sm[""paths""], human(sm[""blob_bytes""]), human(sm[""history_only_bytes""]),
+                    human(sm[""pack_bytes""]) if sm[""pack_bytes""] else ""n/a""))
+    lines.append(""By extension: "" + "", "".join(""%s %s"" % (e, human(n)) for e, n in res[""top_extensions""]))
+    lines.append("""")
+    lines.append(""Top paths (total over all versions):"")
+    for t in res[""top_paths""]:
+        lines.append(""  %-44s %3d ver  %10s  largest %10s  %s"" % (t[""path""][:44], t[""versions""], human(t[""total""]), human(t[""largest""]), ""HEAD"" if t[""in_head""] else ""history only""))
+    lines.append("""")
+    lines.append(""Findings (%d):"" % len(res[""findings""]))
+    for f in res[""findings""]:
+        lines.append(""  %s %s - %s"" % (f[""code""], f[""path""], f[""message""]))
+    if not res[""findings""]:
+        lines.append(""  none"")
+    lines.append("""")
+    lines.append(""Suggested next steps (nothing was changed):"")
+    for x in res[""suggestions""]:
+        lines.append(""  - "" + x)
+    return ""\n"".join(lines) + ""\n""
+
+def self_test():
+    ok = 0; total = 0
+    def check(name, cond):
+        nonlocal ok, total
+        total += 1; ok += bool(cond)
+        print((""PASS  "" if cond else ""FAIL  "") + name)
+    MB = 1024 * 1024
+    objs = parse_objects(""commit aaa 200 150 \nblob b1 6291456 6000000 assets/intro video.mp4\nblob b2 100 80 README.md\ntree t1 50 40 src\nbadline\n"")
+    check(""parser keeps blobs, paths with spaces"", objs == [(""b1"", 6291456, 6000000, ""assets/intro video.mp4""), (""b2"", 100, 80, ""README.md"")])
+    r = analyze(objs, {""README.md""}, 5 * MB)
+    check(""B01 large deleted file"", any(f[""code""] == ""B01"" and f[""path""] == ""assets/intro video.mp4"" for f in r[""findings""]))
+    r = analyze(objs, {""README.md"", ""assets/intro video.mp4""}, 5 * MB)
+    check(""B02 large file in HEAD"", [f[""code""] for f in r[""findings""]] == [""B02""])
+    check(""LFS suggestion for .mp4"", any(""git lfs track \""*.mp4\"""" in s for s in r[""suggestions""]))
+    v = [(""s%d"" % i, 2 * MB, 2 * MB, ""design/logo.psd"") for i in range(4)]
+    r = analyze(v, {""design/logo.psd""}, 5 * MB)
+    check(""B03 binary with many versions"", any(f[""code""] == ""B03"" for f in r[""findings""]))
+    check(""versions counted once per sha"", r[""top_paths""][0][""versions""] == 4 and r[""top_paths""][0][""total""] == 8 * MB)
+    r = analyze([(""x"", 100, 90, ""web/node_modules/lodash/index.js""), (""y"", 200, 90, ""web/node_modules/react/index.js"")], set(), 5 * MB)
+    check(""B04 groups node_modules"", any(f[""code""] == ""B04"" and f[""path""] == ""web/node_modules/"" and ""2 paths"" in f[""message""] for f in r[""findings""]))
+    r = analyze([(""big"", 9 * MB, 2 * MB, ""node_modules/typescript/lib/typescript.js"")], set(), 5 * MB)
+    check(""vendored big file reported once as B04, not B01"", [f[""code""] for f in r[""findings""]] == [""B04""] and any(""--path 'node_modules/'"" in x for x in r[""suggestions""]))
+    r = analyze([(""x"", 100, 90, ""logs/app.log"")], {""logs/app.log""}, 5 * MB)
+    check(""B04 *.log"", any(f[""code""] == ""B04"" and f[""path""] == ""*.log"" for f in r[""findings""]))
+    r = analyze([(""k"", 40, 40, ""config/.env""), (""e"", 40, 40, ""config/.env.example""), (""p"", 40, 40, ""deploy/server.pem"")], set(), 5 * MB)
+    codes = [(f[""code""], f[""path""]) for f in r[""findings""]]
+    check(""B05 .env and .pem flagged"", (""B05"", ""config/.env"") in codes and (""B05"", ""deploy/server.pem"") in codes)
+    check("".env.example not flagged"", (""B05"", ""config/.env.example"") not in codes)
+    check(""secret rotation advice"", any(s.startswith(""Secrets: rotate"") for s in r[""suggestions""]))
+    check(""B05 sorted first"", r[""findings""][0][""code""] == ""B05"")
+    r = analyze([(""a"", 1000, 900, ""src/main.py"")], {""src/main.py""}, 5 * MB)
+    check(""clean repo no findings"", r[""findings""] == [] and ""No action needed"" in r[""suggestions""][0])
+    many = [(""d%d"" % i, 1 * MB, 1 * MB, ""data/export.csv"") for i in range(6)]
+    r = analyze(many, set(), 5 * MB)
+    check(""B01 many small versions of deleted file"", any(f[""code""] == ""B01"" and ""6 versions"" in f[""message""] for f in r[""findings""]))
+    check(""human sizes"", human(512) == ""512 B"" and human(1536) == ""1.5 KB"" and human(5 * MB) == ""5.0 MB"")
+    check(""json render parses"", json.loads(render(r, ""json""))[""summary""][""paths""] == 1)
+    check(""md render has table"", ""| Path | Versions |"" in render(r, ""md""))
+    if shutil.which(""git""):
+        d = tempfile.mkdtemp()
+        try:
+            env_git = [""-c"", ""user.name=t"", ""-c"", ""user.email=t@example.com"", ""-c"", ""commit.gpgsign=false""]
+            subprocess.run([""git"", ""init"", ""-q"", d], check=True)
+            open(os.path.join(d, ""README.md""), ""w"").write(""hello\n"")
+            with open(os.path.join(d, ""big.bin""), ""wb"") as fh: fh.write(os.urandom(300 * 1024))
+            subprocess.run([""git"", ""-C"", d] + env_git + [""add"", "".""], check=True)
+            subprocess.run([""git"", ""-C"", d] + env_git + [""commit"", ""-qm"", ""add""], check=True)
+            subprocess.run([""git"", ""-C"", d] + env_git + [""rm"", ""-q"", ""big.bin""], check=True)
+            subprocess.run([""git"", ""-C"", d] + env_git + [""commit"", ""-qm"", ""rm""], check=True)
+            objs, head, pack = read_objects_from_repo(d)
+            r = analyze(objs, head, 200 * 1024)
+            check(""real git repo: deleted big.bin found in history (B01)"", any(f[""code""] == ""B01"" and f[""path""] == ""big.bin"" for f in r[""findings""]))
+            check(""real git repo: HEAD has README only"", head == {""README.md""})
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+    print(""%d/%d checks passed"" % (ok, total))
+    return 0 if ok == total else 1
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__.split(""\n"")[0])
+    ap.add_argument(""--repo"", default=""."")
+    ap.add_argument(""--threshold-mb"", type=float, default=5.0)
+    ap.add_argument(""--top"", type=int, default=15)
+    ap.add_argument(""--format"", choices=[""text"", ""md"", ""json""], default=""text"")
+    ap.add_argument(""--objects-file""); ap.add_argument(""--head-file"")
+    ap.add_argument(""--self-test"", action=""store_true"")
+    a = ap.parse_args(argv)
+    if a.self_test:
+        return self_test()
+    try:
+        if a.objects_file:
+            objs = parse_objects(open(a.objects_file, encoding=""utf-8"").read())
+            head = set(x.strip() for x in open(a.head_file, encoding=""utf-8"")) - {""""} if a.head_file else set()
+            pack = 0
+        else:
+            objs, head, pack = read_objects_from_repo(a.repo)
+    except (OSError, RuntimeError) as e:
+        print(""error: %s"" % e, file=sys.stderr)
+        return 2
+    res = analyze(objs, head, int(a.threshold_mb * 1024 * 1024), pack, a.top)
+    sys.stdout.write(render(res, a.format))
+    return 1 if res[""findings""] else 0
+
+if __name__ == ""__main__"":
+    sys.exit(main())
+",FALSE,TEXT,f
