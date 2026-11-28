@@ -264197,3 +264197,41 @@ Avoid: people, hands, animals, boats, footprints appearing, snow falling upward,
 
 </details>
 
+<details>
+<summary><strong>Java Library taste</strong></summary>
+
+## Java Library taste
+
+Contributed by [@f](https://github.com/f)
+
+```md
+# Java Library taste of a developer who ships small, stable Maven artifacts
+- Target the oldest Java LTS your users still run (usually 17) and set it with maven.compiler.release, not source/target. Confidence: 0.90
+- Use the Maven Wrapper (mvnw) and commit it so every build uses the same Maven version. Confidence: 0.90
+- Pin every plugin version in pluginManagement; never rely on Maven's default plugin versions. Confidence: 0.95
+- Keep runtime dependencies near zero; a library should not drag Guava or Commons into every consumer. Confidence: 0.85
+- Mark compile-only and annotation-processor dependencies as provided or optional so they do not leak transitively. Confidence: 0.80
+- Ship a module-info.java, or at least an Automatic-Module-Name in the manifest, so JPMS users get a stable module name. Confidence: 0.85
+- Put everything not meant for users in an internal package and do not export it from the module. Confidence: 0.85
+- Prefer immutable value types (records or final classes with builders) for the public API. Confidence: 0.85
+- Never return null from public methods; return Optional for single values and empty collections for lists. Confidence: 0.85
+- Throw unchecked exceptions with clear messages, and define one library-specific base exception type. Confidence: 0.75
+- Annotate nullability with JSpecify (@NullMarked at package level) so Kotlin and static analysis tools see the contract. Confidence: 0.75
+- Use SLF4J as the only logging dependency and never configure a logging backend inside the library. Confidence: 0.90
+- Test with JUnit 5 and AssertJ, and keep unit tests runnable with a plain mvn verify and no network. Confidence: 0.90
+- Run integration tests with the Failsafe plugin and Testcontainers instead of shared test databases. Confidence: 0.80
+- Enforce formatting with Spotless (google-java-format or palantir-java-format) and fail CI on drift. Confidence: 0.80
+- Run Error Prone or SpotBugs in CI and treat new warnings as build failures. Confidence: 0.70
+- Use japicmp or revapi to block accidental binary-incompatible changes in minor and patch releases. Confidence: 0.85
+- Follow semantic versioning strictly; breaking changes wait for a major version with a migration note. Confidence: 0.90
+- Publish a BOM when the project has more than one artifact so users can align versions in one place. Confidence: 0.75
+- Generate and publish sources and Javadoc jars, and write Javadoc for every public type and method. Confidence: 0.85
+- Publish to Maven Central through the Central Portal with signed artifacts, released from CI, never from a laptop. Confidence: 0.85
+- Make builds reproducible by setting project.build.outputTimestamp. Confidence: 0.70
+- Test the library in CI on every supported Java version with a matrix build. Confidence: 0.85
+- Keep a CHANGELOG.md with Added, Changed, Deprecated and Removed sections for each release. Confidence: 0.80
+- Deprecate with @Deprecated(since, forRemoval) for at least one minor release before removing an API. Confidence: 0.80
+```
+
+</details>
+
