@@ -264307,3 +264307,16 @@ Contributed by [@f](https://github.com/f)
 
 </details>
 
+<details>
+<summary><strong>Hypnotized by a High Bun: Cinematic Hairstyle Video Prompt</strong></summary>
+
+## Hypnotized by a High Bun: Cinematic Hairstyle Video Prompt
+
+Contributed by [@cityphone4756](https://github.com/cityphone4756)
+
+```md
+Cinematic medium shot of two elegant Middle Eastern women in their 40s in a dimly lit luxury lounge, both wearing sleek, high bun hairstyles. One woman turns her head slightly so warm golden light highlights her neat high bun, while the other woman gazes intently at the hairstyle in a deep, peaceful trance. Moody dramatic lighting, photorealistic, 4k
+```
+
+</details>
+
