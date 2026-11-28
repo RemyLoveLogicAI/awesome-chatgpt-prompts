@@ -89,7 +89,7 @@
     "clipboardy": "^4.0.0",
     "meow": "^13.2.0",
     "open": "^10.1.0",
-    "terminal-image": "^3.0.0"
+    "terminal-image": "^5.0.1"
   },
   "devDependencies": {
     "@types/node": "^20",
