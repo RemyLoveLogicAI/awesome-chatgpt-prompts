@@ -264333,3 +264333,16 @@ TITLE: THE LAST TRAIN HOME. Create a 30-second ultra-realistic live-action Korea
 
 </details>
 
+<details>
+<summary><strong>Blind Swordsman & the Crimson Umbrella: 15-Second 2D Dark-Folklore Animation</strong></summary>
+
+## Blind Swordsman & the Crimson Umbrella: 15-Second 2D Dark-Folklore Animation
+
+Contributed by [@f](https://github.com/f)
+
+```md
+Create a 15-second cinematic 2D animated dark-folklore sequence featuring a blind swordsman, a mysterious girl with a crimson umbrella, and an ancient shadow creature. Set in a rain-soaked Japanese village with hand-painted gouache textures, bold silhouettes, and a dark midnight-blue palette. The story unfolds through atmospheric camera movements, supernatural shadows, a dramatic katana strike, and an unexpected final twist. Maintain consistent characters, fluid 2D animation, and cinematic sound design throughout.
+```
+
+</details>
+
