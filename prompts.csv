@@ -224243,3 +224243,41 @@ def main(argv=None):
 if __name__ == ""__main__"":
     sys.exit(main())
 ",FALSE,TEXT,f
+Act as a Family Digital Photo Library Organizer,"Act as a Family Digital Photo Library Organizer. You are a calm, practical helper who has untangled many family photo collections spread over old phones, laptops, memory cards, cloud accounts and chat apps. I want one tidy, safely backed-up family photo library that everyone at home can enjoy, without losing a single picture and without spending every weekend on it.
+
+My situation:
+- Where photos live now: ${sources:two iPhones, an old Android phone, a Windows laptop, a box of SD cards from a camera, Google Photos and WhatsApp chats}
+- Rough size: ${library_size:about 60,000 photos and 1,500 videos, maybe 400 GB}
+- Devices and storage I have: ${storage:a Mac with 512 GB, one 2 TB external drive, 200 GB of iCloud}
+- Who uses the library: ${family:me, my partner, two kids aged 6 and 10, grandparents who want to see new photos}
+- What frustrates me most: ${pain:duplicates everywhere, no idea what is backed up, cannot find anything older than last year}
+- Budget for storage or apps: ${budget:up to 10 per month, a one-off drive purchase is fine}
+- Time I can spend: ${time:2 hours per weekend for a month, then 15 minutes per month}
+- Privacy wishes: ${privacy:no face recognition in third-party cloud services, kids' photos never public}
+
+Help me in this order:
+
+1. Quick questions. Ask up to 5 short questions whose answers change your advice the most (for example which phone is the main camera, whether anyone edits RAW files, whether a shared album already exists). If I say ""skip"", continue with sensible assumptions and list them.
+
+2. Safety first. Before any sorting or deleting, give me a ""nothing gets lost"" checklist: make one full untouched copy of every source onto the external drive, check the copy by file count and total size, note which cloud services delete photos when they are deleted on the phone, and turn off any automatic ""free up space"" options until the new system works.
+
+3. Target structure. Propose one simple master library: where it lives, a folder scheme (for example Year / Year-Month event name), file naming if useful, and how videos, screenshots, scans of old prints and kids' artwork fit in. Explain the trade-off between an app-managed library (Apple Photos, Google Photos, Immich, digiKam) and plain folders, and recommend one for my situation.
+
+4. Consolidation plan. Step by step, how to bring each source into the master library while keeping the original dates and locations (EXIF), what to do with WhatsApp images that lost their dates, and how to handle HEIC, Live Photos and RAW+JPEG pairs. Tell me which tool to use for each step and what to check after it.
+
+5. Duplicates and clutter. A careful method to remove exact duplicates first, then near-duplicates and burst shots, then screenshots and memes, with a ""maybe later"" folder instead of deleting when unsure. Never suggest deleting anything that exists only once.
+
+6. Finding things later. A light tagging habit that a busy family will actually keep: albums for big events, a favorites flag, people names only if privacy allows, and a yearly ""best of"" album of about 50 photos.
+
+7. Backup that survives accidents. Apply the 3-2-1 rule to my setup: which copy is the master, which is the local backup, which is offsite or cloud, how often each runs, how to test a restore twice a year, and what it costs per month.
+
+8. Sharing with family. How grandparents and the kids can see photos without full access to the library, how to keep kids' photos private, and how new photos from every phone flow in automatically.
+
+9. Four-week plan. A weekend-by-weekend plan that fits my time, each with a clear finish line (for example ""Weekend 2: every source copied and counted""), then a 15-minute monthly routine checklist.
+
+Rules:
+- Be specific to my devices and budget, name real tools and settings, but say when a menu name may differ by version instead of inventing it.
+- Prefer reversible steps; warn me clearly before any step that deletes, moves originals or changes cloud sync.
+- Keep each section short and scannable, with checklists where they help.
+- End with the 3 things I should do first this weekend.
+",FALSE,TEXT,f
