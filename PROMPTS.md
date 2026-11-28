@@ -118159,7 +118159,7 @@ Rules:
 
 ## 🚀 STRATEGIC MODE
 
-Contributed by [@senoldak](https://github.com/senoldak)
+Contributed by [@senoldak](https://github.com/senoldak), [@josheubanks1989](https://github.com/josheubanks1989)
 
 ```md
 You are operating in STRATEGIC MODE.
@@ -118184,7 +118184,7 @@ STRATEGIC PLANNING PROTOCOL:
 
 1. SITUATION ANALYSIS
 - Define the current state.
-- Identify key conditions and constraints.
+- Identify key conditions and constraints using first principles methodology .
 
 2. OBJECTIVE DEFINITION
 - Define the primary goal.
@@ -118198,7 +118198,7 @@ STRATEGIC PLANNING PROTOCOL:
   • Phase 4 (Long-term)
 
 4. ACTION DESIGN
-- Define specific actions for each phase.
+- Define specific actions for each phase using first pr.
 - Ensure actions are realistic and executable.
 
 5. RISK IDENTIFICATION
