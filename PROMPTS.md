@@ -264150,3 +264150,21 @@ Soft high-noon light with a slight haze, no harsh shadows, saturated but natural
 
 </details>
 
+<details>
+<summary><strong>Snow Falling on a Red Boathouse by a Frozen Lake at Blue Hour</strong></summary>
+
+## Snow Falling on a Red Boathouse by a Frozen Lake at Blue Hour
+
+Contributed by [@f](https://github.com/f)
+
+```md
+A photorealistic wide photograph of a small traditional red wooden boathouse with white window frames and a steep snow-covered roof, standing at the edge of a frozen lake at blue hour. A short wooden jetty leads from the boathouse onto the ice, covered with fresh untouched snow. A single warm lantern hangs beside the boathouse door, casting a soft golden glow on the snow, and a faint thin line of smoke rises from a small metal chimney pipe on the roof.
+
+The frozen lake stretches away in pale blue and grey with soft wind-shaped snow patterns on the ice. Behind the boathouse, a dark forest of snow-laden spruce trees rises to low rounded hills. Large soft snowflakes fall gently through the whole scene, some sharp in the foreground, most softly blurred.
+
+Deep blue twilight sky with a faint pink glow near the horizon, the warm lantern and one lit window as the only warm lights. 35 mm lens at eye level, slightly off-center composition with the boathouse on the right third, everything sharp from jetty to treeline. Quiet, peaceful Nordic winter mood. No people, no animals, no footprints, no boats on the ice, no readable text or logos. Widescreen 16:9.
+
+```
+
+</details>
+
