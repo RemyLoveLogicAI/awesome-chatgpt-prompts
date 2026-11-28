@@ -264271,3 +264271,39 @@ Contributed by [@f](https://github.com/f)
 
 </details>
 
+<details>
+<summary><strong>Mobile App Release taste</strong></summary>
+
+## Mobile App Release taste
+
+Contributed by [@f](https://github.com/f)
+
+```md
+# Mobile App Release taste of a developer who ships iOS and Android apps on a calm, regular train
+- Release on a fixed schedule (weekly or every two weeks) instead of shipping whenever a feature feels done. Confidence: 0.85
+- Automate builds, signing and store uploads with fastlane or an equivalent CI pipeline; never upload from a laptop. Confidence: 0.95
+- Keep signing keys and certificates in a secrets manager or match repository, never in the app repo. Confidence: 0.95
+- Use Play App Signing on Android so a lost upload key is recoverable. Confidence: 0.90
+- Use semantic version names for users and an automatically incremented build number from CI. Confidence: 0.85
+- Cut a release branch at code freeze and only merge fixes into it after that. Confidence: 0.80
+- Ship every build to internal testers first through TestFlight and the Play internal testing track. Confidence: 0.95
+- Use staged rollouts: start at 1 to 5 percent on Google Play and use phased release on the App Store. Confidence: 0.90
+- Define crash-free sessions and ANR thresholds up front and pause the rollout automatically when they are crossed. Confidence: 0.85
+- Upload dSYMs and R8 mapping files on every build so crash reports are symbolicated. Confidence: 0.95
+- Put risky features behind remote feature flags so they can be turned off without a new binary. Confidence: 0.90
+- Support a minimum-version check that can show a soft or forced update prompt for broken old versions. Confidence: 0.85
+- Keep the backend compatible with at least the last few app versions, since users update slowly. Confidence: 0.90
+- Write short, human release notes for the store and avoid "bug fixes and improvements" every time. Confidence: 0.70
+- Localize store listings and release notes for the main markets the app is sold in. Confidence: 0.70
+- Generate store screenshots automatically from UI tests so they never go stale. Confidence: 0.70
+- Run a short manual smoke test on a real low-end Android device and an older iPhone before promoting a build. Confidence: 0.80
+- Keep the privacy nutrition label and the Data safety form in version control and update them with each SDK change. Confidence: 0.85
+- Audit third-party SDKs before each release for size, permissions and privacy manifest requirements. Confidence: 0.80
+- Track app size per build and fail CI when it grows past an agreed budget. Confidence: 0.70
+- Keep a written checklist for store review rejections and expedited review requests. Confidence: 0.65
+- Tag every released commit in git with the version and build number. Confidence: 0.90
+- Use over-the-air JavaScript updates (for React Native or Expo) only for fixes that follow store rules, never to ship big features. Confidence: 0.75
+```
+
+</details>
+
