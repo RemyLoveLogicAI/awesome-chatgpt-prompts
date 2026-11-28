@@ -263487,3 +263487,471 @@ if __name__ == "__main__":
 
 </details>
 
+<details>
+<summary><strong>Sales Pipeline Coverage and Forecast Checker</strong></summary>
+
+## Sales Pipeline Coverage and Forecast Checker
+
+Contributed by [@f](https://github.com/f)
+
+```md
+---
+name: sales-pipeline-coverage-and-forecast-checker
+description: Checks a B2B sales pipeline from a CRM CSV: quarter gap to quota, pipeline coverage, commit, best case, weighted and risk-adjusted forecasts, a per-owner view, and deals that make the forecast unreliable (past close dates, stale, stuck, pushed, no next step, concentration). Stdlib Python.
+---
+
+# Sales Pipeline Coverage and Forecast Checker
+
+You help founders who still run sales, first sales leaders and small B2B teams answer two questions every week: "Will we hit the quarter?" and "Do we have enough pipeline to get there?" CRM dashboards show a big total that feels reassuring; you turn it into an honest number by checking coverage against the remaining gap, separating commit from hope, and pointing at the specific deals that make the forecast unreliable.
+
+You work with deal-level CRM exports only (account names, amounts, stages, dates). You do not need contact details or personal data, and you never judge individual sellers from one quarter's numbers: flags are about deal hygiene, not people.
+
+## Files in this skill
+
+- `scripts/pipeline_check.py` - reads a deals CSV and a settings JSON, computes closed won, gap, open pipeline and coverage for a quarter, commit / best case / weighted / risk-adjusted forecasts, stage and owner breakdowns, and flags P01-P06 plus invalid rows (E01); `--as-of`, `--quarter`, `--format text|md|csv|json`; `--self-test` runs 24 checks (Python 3.8+ standard library only)
+- `references/forecast-method.md` - how coverage and each forecast are calculated, sensible stage probabilities and coverage targets, and how to calibrate them from your own history
+- `references/pipeline-hygiene.md` - what each flag usually means and the question to ask the deal owner
+- `templates/forecast-brief.md` - a one-page weekly forecast note for the team or the board
+- `examples/deals.csv` + `examples/settings.json` - a fictional healthcare SaaS startup in its Q4
+
+## Workflow
+
+### 1. Gather inputs
+Ask for a CRM export (HubSpot, Pipedrive, Salesforce, Close, Attio or a spreadsheet) with one row per deal and these columns: `deal_id, account, owner, stage, amount, close_date, stage_entered, last_activity, next_step, pushes` (dates as YYYY-MM-DD; `pushes` = how many times the close date moved; use 0 if unknown). Then agree the settings: currency, quota per quarter, stage names with win probabilities, forecast category (pipeline, best_case, commit, won, lost) and maximum days per stage, coverage target, stale-activity days, push limit and concentration limit. If the user has no history, start with the defaults in `examples/settings.json` and say so.
+
+### 2. Run the check
+```
+python3 scripts/pipeline_check.py deals.csv --settings settings.json
+python3 scripts/pipeline_check.py deals.csv --settings settings.json --as-of 2026-11-27 --quarter 2026-Q4
+python3 scripts/pipeline_check.py deals.csv --settings settings.json --quarter 2027-Q1
+python3 scripts/pipeline_check.py deals.csv --settings settings.json --format md > forecast.md
+python3 scripts/pipeline_check.py deals.csv --settings settings.json --format csv > flags.csv
+python3 scripts/pipeline_check.py --self-test
+```
+Exit code 0 = no flags, 1 = flags or invalid rows, 2 = unreadable input or missing columns.
+
+| Code | Meaning |
+|---|---|
+| P01 | close date in the past but the deal is still open (counted in the current quarter until fixed) |
+| P02 | no activity for `stale_days` or more |
+| P03 | stage probability 50% or higher but no next step written down |
+| P04 | longer in the current stage than its `max_days` |
+| P05 | close date pushed `push_limit` times or more |
+| P06 | one deal is `concentration_pct` or more of the quarter's open pipeline |
+| E01 | invalid row (unknown stage, bad amount or date, negative values) |
+
+### 3. Interpret
+- Coverage is open pipeline closing this quarter divided by the remaining gap (quota minus closed won), not by the full quota. Below about 2x late in a quarter means the number is at risk; early in a quarter aim for 3x or more.
+- Read the forecasts as a range: commit is the floor you would bet on, best case is the ceiling, weighted is a statistical middle, and risk-adjusted halves the probability of deals with P01, P02 or P05 flags.
+- A big gap between weighted and risk-adjusted means the pipeline needs cleaning more than it needs new deals.
+- P06 is not bad by itself, but the plan must still work if that deal slips.
+- Flags cover the open deals of the analyzed quarter; run `--quarter` for next quarter too, so slipped deals are checked where they now sit.
+
+### 4. Act
+Use `references/pipeline-hygiene.md` to turn flags into owner questions ("What has to happen for this to close by December 19, and who on their side decides?"). Fix close dates and stages in the CRM, then re-run. If coverage is short, the script's "add X of qualified pipeline" line gives a concrete target for prospecting and for next quarter.
+
+### 5. Report
+Fill `templates/forecast-brief.md`: the forecast range, coverage, the three deals that decide the quarter, the hygiene fixes, and what is needed for next quarter's pipeline.
+
+## Example
+```
+python3 scripts/pipeline_check.py examples/deals.csv --settings examples/settings.json
+```
+Result (as of 2026-11-27): quota USD 260k, closed won USD 85k, gap USD 175k; USD 364k open in 9 deals gives 2.08x coverage, so USD 161k more qualified pipeline is needed for 3x. Forecast range: commit USD 194k (74.6%), weighted USD 222k, risk-adjusted USD 213k (81.8%), best case USD 294k. Flags: Cedar Family Practice is past its close date, stale and pushed 3 times; Lakeside Vision Care is in Negotiation without a next step and pushed twice; Metro Urgent Care has sat in Proposal for 44 days; Greenfield Hospital Group alone is 38% of open pipeline.
+
+## Limits
+- The output is only as good as the CRM data; stale stages and optimistic close dates are the most common errors, which is why the flags exist.
+- Stage probabilities are assumptions until calibrated with at least a few quarters of your own win rates (see `references/forecast-method.md`).
+- Amounts are treated as one currency and one-off bookings; for multi-year or usage-based deals, agree what "amount" means (first-year ACV is common).
+- This is a planning aid, not financial reporting or a performance review tool.
+
+FILE:references/forecast-method.md
+# Forecast method
+
+All numbers are for one quarter (`--quarter`, default: the quarter of `--as-of`).
+
+| Number | Formula | Use it for |
+|---|---|---|
+| Closed won | sum of `won` deals with a close date in the quarter | what is already booked |
+| Gap | max(quota - closed won, 0) | what is still missing |
+| Open pipeline | open deals closing in the quarter, plus past-dated open deals when the quarter is the current one | what could still close |
+| Coverage | open pipeline / gap | is there enough to choose from |
+| Pipeline needed | max(gap x coverage target - open pipeline, 0) | a prospecting target |
+| Commit | closed won + `commit` deals | the floor you would promise |
+| Best case | commit + `best_case` deals | the ceiling if things go well |
+| Weighted | closed won + sum(amount x stage probability) | a statistical middle for planning |
+| Risk-adjusted | weighted, but deals with P01, P02 or P05 get probability x `risk_haircut` (default 0.5) | a more honest middle |
+
+## Starting stage probabilities (replace with your own)
+
+| Stage | Typical probability | Category | Max days |
+|---|---|---|---|
+| Discovery / qualification | 5-15% | pipeline | 30 |
+| Demo / evaluation | 20-30% | pipeline | 30 |
+| Proposal / pricing | 35-50% | best_case | 30 |
+| Negotiation / legal | 65-80% | commit | 21 |
+| Verbal yes, paperwork | 85-95% | commit | 14 |
+
+## Coverage targets
+
+- Start of the quarter: 3x is a common target for new business; 4x if win rates are low or deals are large and few.
+- Mid-quarter: 2-2.5x of the remaining gap.
+- Last month: coverage matters less than commit; focus on the deals in Negotiation.
+- Renewals and expansions usually need much lower coverage (1.2-1.5x) and should be forecast separately.
+
+## Calibrating with your own history
+
+1. Export the last 4-8 quarters of closed deals (won and lost) with the highest stage each reached.
+2. For each stage: win rate = deals won that reached the stage / all closed deals that reached the stage.
+3. Use those rates as probabilities; round to 5%. With fewer than 20 closed deals per stage, blend with the starting table.
+4. Measure median days in each stage for won deals; set `max_days` at roughly 1.5x that median.
+5. Compare last quarter's weighted forecast in week 4 with the actual result; if you were off by more than 15%, adjust the probabilities or the haircut.
+
+FILE:references/pipeline-hygiene.md
+# Pipeline hygiene: what each flag means and what to ask
+
+| Flag | Usually means | Ask the deal owner | Typical fix |
+|---|---|---|---|
+| P01 past close date | The date was never updated after it slipped | "What is the real decision date, and what changed?" | Set a new date based on the buyer's process, or move to lost |
+| P02 no recent activity | The buyer went quiet or the deal is dead | "When did we last hear from someone with authority?" | One clear re-engagement attempt, then lost or nurture |
+| P03 no next step in a late stage | Hope instead of a plan | "What is the next meeting, with whom, and on what date?" | Agree a dated next step with the buyer, write it in the CRM |
+| P04 stuck in stage | A blocker nobody named (budget, security review, legal, champion left) | "What exactly must happen to move to the next stage?" | Name the blocker and an owner on the buyer's side, or step the stage back |
+| P05 pushed repeatedly | No real urgency or no decision maker involved | "Why will this date hold when the last ones did not?" | Re-qualify: pain, budget, decision process; consider moving it out of commit |
+| P06 concentration | One deal carries the quarter | "What is plan B if this slips to next quarter?" | Executive sponsor on both sides, mutual close plan, more pipeline elsewhere |
+| E01 invalid row | Export or data entry problem | - | Fix stage names, amounts and dates in the CRM, export again |
+
+## Weekly 30-minute pipeline review
+
+1. Run the script before the meeting; share the text or md output.
+2. Start with commit deals: confirm the next step and date for each.
+3. Go through flags, oldest close date first; decide close date, stage or lost on the spot.
+4. Check coverage for this quarter and next; agree the prospecting target.
+5. Write down changes; re-run after the CRM is updated.
+
+## Good habits
+
+- A stage change needs a buyer action (they agreed to a demo, sent a security questionnaire, asked for an order form), not a seller action.
+- Close dates come from the buyer's process, not from the end of our quarter.
+- Moving a dead deal to lost is good news for the forecast: it makes every other number more believable.
+
+FILE:templates/forecast-brief.md
+# Weekly forecast: {{quarter}} (as of {{as_of}})
+
+## The number
+- Quota {{quota}} | Closed won {{closed_won}} | Gap {{gap}}
+- Forecast range: commit {{commit}} - risk-adjusted {{risk_adjusted}} - best case {{best_case}}
+- Our call this week: {{call}} ({{call_reason}})
+
+## Coverage
+- Open pipeline {{open_pipeline}} in {{open_deals}} deals -> {{coverage}} coverage (target {{coverage_target}})
+- Pipeline needed: {{pipeline_needed}} | Next quarter coverage: {{next_quarter_coverage}}
+
+## Deals that decide the quarter
+| Deal | Amount | Stage | Next step and date | Risk |
+|---|---|---|---|---|
+| {{deal}} | {{amount}} | {{stage}} | {{next_step}} | {{risk}} |
+
+## Hygiene fixes this week
+- {{fix_1}}
+- {{fix_2}}
+
+## Asks
+- {{ask}} (for example an executive call with Greenfield, legal review capacity)
+
+FILE:examples/deals.csv
+deal_id,account,owner,stage,amount,close_date,stage_entered,last_activity,next_step,pushes
+D101,Northwind Clinics,maya,Closed Won,48000,2026-10-09,2026-09-20,2026-10-09,,0
+D102,Harbor Dental Group,maya,Closed Won,22000,2026-11-04,2026-10-21,2026-11-04,,1
+D103,Pinecrest Physio,leo,Closed Won,15000,2026-11-18,2026-11-02,2026-11-18,,0
+D104,Bluebird Pediatrics,leo,Closed Lost,30000,2026-11-12,2026-10-15,2026-11-12,,1
+D105,Summit Health Partners,maya,Negotiation,64000,2026-12-12,2026-11-19,2026-11-25,Legal redlines call Dec 2,0
+D106,Lakeside Vision Care,leo,Negotiation,18000,2026-12-05,2026-11-03,2026-11-24,,2
+D107,Riverbend Orthopedics,maya,Proposal,36000,2026-12-19,2026-11-12,2026-11-26,Pricing review with CFO,0
+D108,Cedar Family Practice,sam,Proposal,12000,2026-11-20,2026-10-28,2026-11-06,Send revised quote,3
+D109,Metro Urgent Care,sam,Proposal,52000,2026-12-30,2026-10-14,2026-11-21,Security questionnaire,1
+D110,Oakwood Dermatology,leo,Discovery,9000,2026-12-22,2026-11-18,2026-11-26,Demo for office manager,0
+D111,Greenfield Hospital Group,maya,Discovery,140000,2026-12-31,2026-11-24,2026-11-25,Intro call with IT,0
+D112,Sunrise Speech Therapy,sam,Discovery,6000,2026-12-15,2026-10-01,2026-10-29,Follow-up email,0
+D113,Valley Women's Health,leo,Proposal,24000,2027-01-29,2026-11-20,2026-11-26,Proposal walkthrough,0
+D114,Brightside Mental Health,sam,Negotiation,27000,2026-12-18,2026-11-21,2026-11-25,Order form signature,0
+
+FILE:examples/settings.json
+{
+  "currency": "USD",
+  "as_of": "2026-11-27",
+  "quota": {"2026-Q4": 260000, "2027-Q1": 300000},
+  "coverage_target": 3.0,
+  "stale_days": 21,
+  "concentration_pct": 30,
+  "push_limit": 2,
+  "risk_haircut": 0.5,
+  "stages": {
+    "Discovery": {"probability": 0.1, "category": "pipeline", "max_days": 30},
+    "Proposal": {"probability": 0.4, "category": "best_case", "max_days": 30},
+    "Negotiation": {"probability": 0.75, "category": "commit", "max_days": 21},
+    "Closed Won": {"probability": 1.0, "category": "won"},
+    "Closed Lost": {"probability": 0.0, "category": "lost"}
+  }
+}
+
+FILE:scripts/pipeline_check.py
+#!/usr/bin/env python3
+"""pipeline_check.py - sales pipeline coverage and forecast checker for B2B founders and small sales teams.
+
+Reads a deals CSV exported from a CRM (or a spreadsheet) and a settings JSON (quota, stages with win
+probabilities and maximum days, thresholds). For the chosen quarter it computes closed-won to date, the
+gap to quota, pipeline coverage, commit / best case / weighted and risk-adjusted forecasts, a per-owner
+view, and flags deals that make the forecast unreliable.
+
+Usage:
+  pipeline_check.py deals.csv --settings settings.json [--as-of 2026-11-27] [--quarter 2026-Q4]
+                    [--format text|md|csv|json]
+  pipeline_check.py --self-test
+Exit: 0 = no flags, 1 = flags or invalid rows, 2 = unreadable input or missing columns.
+Python 3.8+ standard library only."""
+import argparse, csv, io, json, sys
+from datetime import date, datetime
+
+REQUIRED = ["deal_id", "account", "owner", "stage", "amount", "close_date", "stage_entered", "last_activity", "next_step", "pushes"]
+DEFAULTS = {"currency": "USD", "coverage_target": 3.0, "stale_days": 21, "concentration_pct": 30, "push_limit": 2,
+            "risk_haircut": 0.5, "quota": {}, "stages": {}}
+CODES = {"P01": "close date in the past but deal still open", "P02": "no activity for {d} days (limit {l})",
+         "P03": "late-stage deal without a next step", "P04": "{d} days in stage {s} (limit {l})",
+         "P05": "close date pushed {n} times (limit {l})", "P06": "one deal is {p:.0f}% of the quarter's open pipeline (limit {l}%)"}
+
+def parse_date(s):
+    return datetime.strptime(s.strip(), "%Y-%m-%d").date()
+
+def quarter_of(d):
+    return "%d-Q%d" % (d.year, (d.month - 1) // 3 + 1)
+
+def money(x, cur):
+    return "%s %s" % (cur, format(int(round(x)), ","))
+
+def load_settings(obj):
+    s = dict(DEFAULTS); s.update(obj or {})
+    if not s["stages"]:
+        raise ValueError("settings.stages is empty")
+    for name, st in s["stages"].items():
+        if not 0 <= float(st.get("probability", -1)) <= 1:
+            raise ValueError("stage %s: probability must be 0..1" % name)
+        if st.get("category") not in ("pipeline", "best_case", "commit", "won", "lost"):
+            raise ValueError("stage %s: category must be pipeline, best_case, commit, won or lost" % name)
+    return s
+
+def read_deals(text, settings):
+    rd = csv.DictReader(io.StringIO(text))
+    missing = [c for c in REQUIRED if c not in (rd.fieldnames or [])]
+    if missing:
+        raise ValueError("missing columns: " + ", ".join(missing))
+    deals, errors = [], []
+    for n, row in enumerate(rd, start=2):
+        row = {k: (v or "").strip() for k, v in row.items() if k}
+        try:
+            if row["stage"] not in settings["stages"]:
+                raise ValueError("unknown stage %r" % row["stage"])
+            try:
+                amt = float(row["amount"].replace(",", ""))
+            except ValueError:
+                raise ValueError("amount %r is not a number" % row["amount"])
+            if amt < 0:
+                raise ValueError("negative amount")
+            try:
+                pushes = int(row["pushes"] or 0)
+            except ValueError:
+                raise ValueError("pushes %r is not a whole number" % row["pushes"])
+            if pushes < 0:
+                raise ValueError("negative pushes")
+            d = dict(row, amount=amt, pushes=pushes, close=parse_date(row["close_date"]),
+                     entered=parse_date(row["stage_entered"]), activity=parse_date(row["last_activity"]), line=n)
+            deals.append(d)
+        except (ValueError, KeyError) as e:
+            errors.append({"line": n, "deal_id": row.get("deal_id", "?"), "code": "E01", "message": str(e)})
+    return deals, errors
+
+def analyze(deals, errors, s, as_of, quarter):
+    cur = s["currency"]
+    st = s["stages"]
+    quota = float(s["quota"].get(quarter, 0))
+    in_q = [d for d in deals if quarter_of(d["close"]) == quarter or (st[d["stage"]]["category"] not in ("won", "lost") and d["close"] < as_of and quarter_of(as_of) == quarter)]
+    won = sum(d["amount"] for d in in_q if st[d["stage"]]["category"] == "won")
+    open_q = [d for d in in_q if st[d["stage"]]["category"] not in ("won", "lost")]
+    open_amt = sum(d["amount"] for d in open_q)
+    gap = max(quota - won, 0.0)
+    flags = []
+    def flag(deal, code, **kw):
+        flags.append({"deal_id": deal["deal_id"], "account": deal["account"], "owner": deal["owner"], "code": code,
+                      "amount": deal["amount"], "message": CODES[code].format(**kw)})
+    for d in open_q:  # hygiene flags for the quarter's open deals
+        if d["close"] < as_of:
+            flag(d, "P01")
+        idle = (as_of - d["activity"]).days
+        if idle >= s["stale_days"]:
+            flag(d, "P02", d=idle, l=s["stale_days"])
+        if float(st[d["stage"]]["probability"]) >= 0.5 and not d["next_step"]:
+            flag(d, "P03")
+        mx = st[d["stage"]].get("max_days")
+        age = (as_of - d["entered"]).days
+        if mx and age > mx:
+            flag(d, "P04", d=age, s=d["stage"], l=mx)
+        if d["pushes"] >= s["push_limit"]:
+            flag(d, "P05", n=d["pushes"], l=s["push_limit"])
+    for d in open_q:
+        if open_amt and len(open_q) > 1 and d["amount"] / open_amt * 100 >= s["concentration_pct"]:
+            flag(d, "P06", p=d["amount"] / open_amt * 100, l=s["concentration_pct"])
+    risky = {f["deal_id"] for f in flags if f["code"] in ("P01", "P02", "P05")}
+    commit = won + sum(d["amount"] for d in open_q if st[d["stage"]]["category"] == "commit")
+    best = commit + sum(d["amount"] for d in open_q if st[d["stage"]]["category"] == "best_case")
+    weighted = won + sum(d["amount"] * float(st[d["stage"]]["probability"]) for d in open_q)
+    risk_adj = won + sum(d["amount"] * float(st[d["stage"]]["probability"]) * (s["risk_haircut"] if d["deal_id"] in risky else 1.0) for d in open_q)
+    coverage = (open_amt / gap) if gap else None
+    needed = max(gap * s["coverage_target"] - open_amt, 0.0) if gap else 0.0
+    owners = {}
+    for d in in_q:
+        o = owners.setdefault(d["owner"], {"owner": d["owner"], "won": 0.0, "open": 0.0, "weighted": 0.0, "deals_open": 0, "flags": 0})
+        cat = st[d["stage"]]["category"]
+        if cat == "won": o["won"] += d["amount"]
+        elif cat != "lost":
+            o["open"] += d["amount"]; o["deals_open"] += 1; o["weighted"] += d["amount"] * float(st[d["stage"]]["probability"])
+    for f in flags:
+        if f["owner"] in owners: owners[f["owner"]]["flags"] += 1
+    by_stage = {}
+    for d in open_q:
+        b = by_stage.setdefault(d["stage"], [0, 0.0]); b[0] += 1; b[1] += d["amount"]
+    order = list(st)
+    return {"currency": cur, "as_of": as_of.isoformat(), "quarter": quarter, "quota": quota, "closed_won": won, "gap": gap,
+            "open_pipeline": open_amt, "open_deals": len(open_q), "coverage": coverage, "coverage_target": s["coverage_target"],
+            "pipeline_needed": needed, "forecast": {"commit": commit, "best_case": best, "weighted": weighted, "risk_adjusted": risk_adj},
+            "attainment_pct": {"commit": pct(commit, quota), "weighted": pct(weighted, quota), "risk_adjusted": pct(risk_adj, quota)},
+            "by_stage": [{"stage": k, "deals": by_stage[k][0], "amount": by_stage[k][1]} for k in order if k in by_stage],
+            "owners": sorted(owners.values(), key=lambda o: -o["open"]),
+            "flags": sorted(flags, key=lambda f: (f["code"], -f["amount"])), "errors": errors}
+
+def pct(x, q):
+    return round(x / q * 100, 1) if q else None
+
+def render(r, fmt):
+    c = r["currency"]; m = lambda x: money(x, c)
+    cov = ("%.2fx" % r["coverage"]) if r["coverage"] is not None else "n/a (quota reached)"
+    if fmt == "json":
+        return json.dumps(r, indent=2)
+    if fmt == "csv":
+        out = io.StringIO(); w = csv.writer(out)
+        w.writerow(["deal_id", "account", "owner", "amount", "code", "message"])
+        for f in r["flags"]: w.writerow([f["deal_id"], f["account"], f["owner"], int(f["amount"]), f["code"], f["message"]])
+        for e in r["errors"]: w.writerow([e["deal_id"], "", "", "", "E01", "line %d: %s" % (e["line"], e["message"])])
+        return out.getvalue()
+    f = r["forecast"]; a = r["attainment_pct"]
+    head = [
+        "Quarter %s as of %s: quota %s, closed won %s, gap %s" % (r["quarter"], r["as_of"], m(r["quota"]), m(r["closed_won"]), m(r["gap"])),
+        "Open pipeline %s in %d deal%s -> coverage %s (target %.1fx)%s" % (m(r["open_pipeline"]), r["open_deals"], "" if r["open_deals"] == 1 else "s", cov, r["coverage_target"],
+            ("; add %s of qualified pipeline to reach target" % m(r["pipeline_needed"])) if r["pipeline_needed"] else ""),
+        "Forecast: commit %s (%s%%), best case %s, weighted %s (%s%%), risk-adjusted %s (%s%%)" % (m(f["commit"]), a["commit"], m(f["best_case"]), m(f["weighted"]), a["weighted"], m(f["risk_adjusted"]), a["risk_adjusted"]),
+    ]
+    if fmt == "md":
+        L = ["# Pipeline check %s" % r["quarter"], ""] + ["- " + h for h in head] + ["", "## Open pipeline by stage", "", "| Stage | Deals | Amount |", "|---|---|---|"]
+        L += ["| %s | %d | %s |" % (b["stage"], b["deals"], m(b["amount"])) for b in r["by_stage"]]
+        L += ["", "## Owners", "", "| Owner | Won | Open | Weighted | Open deals | Flags |", "|---|---|---|---|---|---|"]
+        L += ["| %s | %s | %s | %s | %d | %d |" % (o["owner"], m(o["won"]), m(o["open"]), m(o["weighted"]), o["deals_open"], o["flags"]) for o in r["owners"]]
+        L += ["", "## Flags", ""] + (["- **%s** %s (%s, %s, %s): %s" % (x["code"], x["deal_id"], x["account"], x["owner"], m(x["amount"]), x["message"]) for x in r["flags"]] or ["- none"])
+        L += ["- **E01** line %d %s: %s" % (e["line"], e["deal_id"], e["message"]) for e in r["errors"]]
+        return "\n".join(L) + "\n"
+    L = head + ["", "Open pipeline by stage:"] + ["  %-14s %3d deal%s %14s" % (b["stage"], b["deals"], " " if b["deals"] == 1 else "s", m(b["amount"])) for b in r["by_stage"]]
+    L += ["", "Owners:"] + ["  %-10s won %12s  open %12s  weighted %12s  %d open deal%s, %d flag%s" % (o["owner"], m(o["won"]), m(o["open"]), m(o["weighted"]), o["deals_open"], "" if o["deals_open"] == 1 else "s", o["flags"], "" if o["flags"] == 1 else "s") for o in r["owners"]]
+    L += ["", "Flags (%d):" % len(r["flags"])] + ["  %s %-6s %-22s %-8s %12s  %s" % (x["code"], x["deal_id"], x["account"][:22], x["owner"], m(x["amount"]), x["message"]) for x in r["flags"]]
+    L += ["  E01 line %d %s: %s" % (e["line"], e["deal_id"], e["message"]) for e in r["errors"]]
+    if not r["flags"] and not r["errors"]:
+        L.append("  none")
+    return "\n".join(L) + "\n"
+
+def self_test():
+    ok = total = 0
+    def check(name, cond):
+        nonlocal ok, total
+        total += 1; ok += bool(cond); print(("PASS  " if cond else "FAIL  ") + name)
+    S = load_settings({"currency": "USD", "quota": {"2026-Q4": 100000}, "stale_days": 21, "push_limit": 2, "concentration_pct": 30,
+                       "stages": {"Discovery": {"probability": 0.1, "category": "pipeline", "max_days": 30},
+                                  "Proposal": {"probability": 0.5, "category": "best_case", "max_days": 21},
+                                  "Negotiation": {"probability": 0.8, "category": "commit", "max_days": 14},
+                                  "Closed Won": {"probability": 1, "category": "won"}, "Closed Lost": {"probability": 0, "category": "lost"}}})
+    H = ",".join(REQUIRED) + "\n"
+    def run(rows, as_of="2026-11-27"):
+        deals, errs = read_deals(H + "".join(r + "\n" for r in rows), S)
+        return analyze(deals, errs, S, parse_date(as_of), "2026-Q4")
+    base = ["W1,Acme,ann,Closed Won,40000,2026-10-15,2026-10-01,2026-10-15,,0",
+            "N1,Beta,ann,Negotiation,20000,2026-12-15,2026-11-20,2026-11-25,Send contract,0",
+            "P1,Gamma,bob,Proposal,30000,2026-12-20,2026-11-15,2026-11-24,Pricing call,0",
+            "D1,Delta,bob,Discovery,50000,2026-12-30,2026-11-10,2026-11-26,Demo,0"]
+    r = run(base)
+    check("closed won counted", r["closed_won"] == 40000)
+    check("gap = quota - won", r["gap"] == 60000)
+    check("open pipeline in quarter", r["open_pipeline"] == 100000 and r["open_deals"] == 3)
+    check("coverage = open / gap", abs(r["coverage"] - 100000 / 60000) < 1e-9)
+    check("pipeline needed for 3x", r["pipeline_needed"] == 80000)
+    check("commit = won + commit stage", r["forecast"]["commit"] == 60000)
+    check("best case adds best_case stage", r["forecast"]["best_case"] == 90000)
+    check("weighted forecast", abs(r["forecast"]["weighted"] - (40000 + 16000 + 15000 + 5000)) < 1e-6)
+    check("P06 concentration for 50% deal", any(f["code"] == "P06" and f["deal_id"] == "D1" for f in r["flags"]))
+    check("no other flags on healthy deals", {f["code"] for f in r["flags"]} == {"P06"})
+    r = run(["X1,Old,ann,Proposal,10000,2026-09-20,2026-09-01,2026-11-20,Follow up,0", "X2,Fine,ann,Proposal,10000,2026-12-10,2026-11-20,2026-11-26,Call,0"])
+    check("P01 past close date", any(f["code"] == "P01" and f["deal_id"] == "X1" for f in r["flags"]))
+    check("past-quarter open deal counted in current quarter", r["open_deals"] == 2)
+    r = run(["S1,Quiet,bob,Discovery,5000,2026-12-10,2026-11-20,2026-10-30,Email,0"])
+    check("P02 stale activity 28 days", any(f["code"] == "P02" and "28 days" in f["message"] for f in r["flags"]))
+    r = run(["L1,NoStep,bob,Negotiation,5000,2026-12-10,2026-11-25,2026-11-26,,0", "L2,EarlyNoStep,bob,Discovery,5000,2026-12-10,2026-11-25,2026-11-26,,0"])
+    check("P03 late stage without next step", [f["deal_id"] for f in r["flags"] if f["code"] == "P03"] == ["L1"])
+    r = run(["A1,Stuck,ann,Proposal,5000,2026-12-10,2026-10-20,2026-11-26,Call,0"])
+    check("P04 stuck in stage 38 > 21 days", any(f["code"] == "P04" and "38 days" in f["message"] for f in r["flags"]))
+    r = run(["R1,Slipper,ann,Negotiation,10000,2026-12-10,2026-11-20,2026-11-26,Call,3", "R2,Other,ann,Negotiation,10000,2026-12-10,2026-11-20,2026-11-26,Call,0"])
+    check("P05 pushed 3 times", any(f["code"] == "P05" and f["deal_id"] == "R1" for f in r["flags"]))
+    check("risk-adjusted halves risky deal", abs(r["forecast"]["risk_adjusted"] - (4000 + 8000)) < 1e-6)
+    r = run(["E1,Bad,ann,Prospecting,100,2026-12-10,2026-11-20,2026-11-26,Call,0", "E2,Bad2,ann,Proposal,abc,2026-12-10,2026-11-20,2026-11-26,Call,0", "E3,Bad3,ann,Proposal,10,2026-13-10,2026-11-20,2026-11-26,Call,0"])
+    check("E01 unknown stage, bad amount, bad date", [e["deal_id"] for e in r["errors"]] == ["E1", "E2", "E3"])
+    r = run(["W1,Acme,ann,Closed Won,120000,2026-10-15,2026-10-01,2026-10-15,,0"])
+    check("quota reached: no coverage, nothing needed", r["coverage"] is None and r["pipeline_needed"] == 0 and r["gap"] == 0)
+    r = run(["N1,NextQ,ann,Negotiation,20000,2027-01-15,2026-11-20,2026-11-25,Call,0"])
+    check("next-quarter deal excluded", r["open_deals"] == 0)
+    r = run(["N2,NextQStale,ann,Negotiation,20000,2027-01-15,2026-09-01,2026-09-02,,5"])
+    check("flags only for the analyzed quarter", r["flags"] == [])
+    try:
+        read_deals("deal_id,amount\n1,2\n", S); check("missing columns rejected", False)
+    except ValueError as e:
+        check("missing columns rejected", "missing columns" in str(e))
+    try:
+        load_settings({"stages": {"X": {"probability": 2, "category": "pipeline"}}}); check("bad probability rejected", False)
+    except ValueError:
+        check("bad probability rejected", True)
+    r = run(base)
+    check("csv and md render", render(r, "csv").startswith("deal_id,") and "| Stage | Deals | Amount |" in render(r, "md"))
+    print("%d/%d checks passed" % (ok, total))
+    return 0 if ok == total else 1
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("deals", nargs="?"); ap.add_argument("--settings")
+    ap.add_argument("--as-of"); ap.add_argument("--quarter")
+    ap.add_argument("--format", choices=["text", "md", "csv", "json"], default="text")
+    ap.add_argument("--self-test", action="store_true")
+    a = ap.parse_args(argv)
+    if a.self_test:
+        return self_test()
+    if not a.deals or not a.settings:
+        ap.error("deals CSV and --settings are required")
+    try:
+        s = load_settings(json.load(open(a.settings, encoding="utf-8")))
+        deals, errors = read_deals(open(a.deals, encoding="utf-8-sig").read(), s)
+        as_of = parse_date(a.as_of or s.get("as_of") or date.today().isoformat())
+    except (OSError, ValueError, json.JSONDecodeError) as e:
+        print("error: %s" % e, file=sys.stderr); return 2
+    q = a.quarter or quarter_of(as_of)
+    r = analyze(deals, errors, s, as_of, q)
+    sys.stdout.write(render(r, a.format))
+    return 1 if r["flags"] or r["errors"] else 0
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+```
+
+</details>
+
