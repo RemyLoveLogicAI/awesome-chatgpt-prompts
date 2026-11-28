@@ -264346,3 +264346,94 @@ Create a 15-second cinematic 2D animated dark-folklore sequence featuring a blin
 
 </details>
 
+<details>
+<summary><strong>Vintage Editorial Botanical Poster From Your Photo (JSON Prompt)</strong></summary>
+
+## Vintage Editorial Botanical Poster From Your Photo (JSON Prompt)
+
+Contributed by [@f](https://github.com/f)
+
+```md
+{
+  "task": "Transform the uploaded image into a vintage editorial botanical poster while preserving the identity of the original subject.",
+  "reference_image": "Use the uploaded image as the primary source. Preserve the original subject, object, flower, fruit, plant, or scene, but completely redesign the presentation into the poster style described below.",
+  "style": {
+    "aesthetic": "retro botanical editorial magazine poster, vintage print design, 1970s-inspired art direction",
+    "texture": "warm cream paper texture, visible fine grain, halftone dots, subtle ink imperfections, analog print noise",
+    "photography": "highly realistic photographic subject, natural textures, detailed surface imperfections, authentic lighting, no artificial CGI appearance",
+    "color_palette": [
+      "warm ivory",
+      "deep plum or burgundy",
+      "muted blue",
+      "natural greens",
+      "colors harmonizing with the original subject"
+    ]
+  },
+  "composition": {
+    "aspect_ratio": "3:4",
+    "layout": "vertical editorial poster",
+    "background": "warm cream textured paper occupying the upper portion, transitioning into a softly textured contrasting color background behind the main subject",
+    "main_subject": "large, highly realistic version of the uploaded subject placed prominently in the lower two-thirds of the poster",
+    "typography_placement": {
+      "headline": "Place an enormous uppercase serif word behind the main subject across the middle-upper area. The typography should be extremely large, tightly spaced, elegant, high contrast, and partially obscured by the subject.",
+      "headline_color": "deep purple, burgundy, or a contrasting color selected to complement the subject",
+      "small_text_top_left": "A short poetic phrase related to the subject",
+      "small_text_upper_right": "Another short poetic phrase related to the subject",
+      "original_inset": "Add a small rectangular inset image in the top-right corner showing the original subject in a simple photographic composition. Frame it with a thin border matching the headline color.",
+      "inset_label": "ORIGINAL"
+    },
+    "depth": "The main subject must overlap the oversized typography, creating layered editorial composition and realistic depth."
+  },
+  "typography": {
+    "headline_font": "high-contrast vintage Didone serif similar to Bodoni or editorial fashion magazine typography",
+    "headline_style": "oversized uppercase, elegant, bold, slightly distressed halftone printing",
+    "small_text_font": "typewriter-style serif or vintage monospaced serif",
+    "small_text_style": "lowercase, restrained, short poetic phrases, widely spaced placement",
+    "text_color": "deep saturated complementary color",
+    "text_accuracy": "Ensure text is clean, legible, correctly spelled, and visually integrated into the design."
+  },
+  "lighting": {
+    "style": "natural direct sunlight with subtle directional shadows",
+    "highlights": "realistic highlights on the subject, emphasizing natural texture",
+    "mood": "warm, nostalgic, artistic, quiet, tactile"
+  },
+  "image_quality": {
+    "photorealism": "high",
+    "detail": "extremely detailed subject textures",
+    "grain": "fine analog film grain and visible vintage print halftone",
+    "sharpness": "subject sharp, background subtly textured",
+    "avoid": "plastic textures, excessive HDR, glossy CGI, cartoon appearance, artificial smoothness"
+  },
+  "creative_direction": {
+    "adapt_automatically": "Automatically identify the uploaded subject and generate a suitable oversized headline, poetic microcopy, complementary background color, and poster color palette.",
+    "headline": "Use a single short word associated with the subject, such as the subject's name or a poetic descriptive word.",
+    "microcopy": "Generate two short poetic phrases that feel like vintage editorial copy. Keep them subtle and understated.",
+    "preserve_subject": "Do not change the subject's identity, shape, defining characteristics, or recognizable details.",
+    "design_balance": "Maintain generous negative space in the upper cream section while allowing the subject and oversized typography to dominate."
+  },
+  "negative_prompt": [
+    "modern minimalist design",
+    "flat vector illustration",
+    "cartoon",
+    "3D render",
+    "plastic textures",
+    "overly clean digital graphics",
+    "generic stock photography",
+    "incorrect subject anatomy",
+    "distorted objects",
+    "unnecessary extra objects",
+    "cluttered layout",
+    "tiny headline",
+    "illegible typography",
+    "misspelled words",
+    "watermarks",
+    "logos",
+    "low resolution",
+    "over-sharpening",
+    "excessive saturation"
+  ]
+}
+```
+
+</details>
+
