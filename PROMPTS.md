@@ -264132,3 +264132,21 @@ Low golden afternoon sunlight comes from the side and shines through the persimm
 
 </details>
 
+<details>
+<summary><strong>Aerial View of Colorful Salt Evaporation Ponds on a Coastal Flat</strong></summary>
+
+## Aerial View of Colorful Salt Evaporation Ponds on a Coastal Flat
+
+Contributed by [@f](https://github.com/f)
+
+```md
+A top-down aerial photograph of salt evaporation ponds on a flat coastal plain, taken straight down from high above. The ponds form an irregular patchwork of rectangles and trapezoids separated by thin pale earthen dikes and narrow straight channels. Each pond is a different color depending on its salinity and the microorganisms in the brine: deep turquoise and teal near the sea side, then mint green, mustard yellow, coral pink, rose and finally a vivid magenta-red in the most concentrated pools, with a few bright white crusts of crystallized salt.
+
+Fine textures are visible up close: ripples on the water, salt crystals building up along the edges, tyre tracks and a single narrow dirt road running along one dike, and small white heaps of harvested salt at one corner. A thin strip of dark blue sea and pale sand fills one edge of the frame.
+
+Soft high-noon light with a slight haze, no harsh shadows, saturated but natural colors, crisp detail across the whole frame like a high-resolution drone photo. The composition reads as an abstract color-field painting while staying clearly photographic. No people, no vehicles, no buildings in focus, no text, labels or map overlays. Square 1:1.
+
+```
+
+</details>
+
