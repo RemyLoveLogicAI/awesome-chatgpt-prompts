@@ -224753,3 +224753,47 @@ Never present 3 or 4 as 1. Do not clutter a clean translation with uncertainty n
 Keep, and update as you go: a terminology ledger (source term, Turkish choice, rejected alternatives, reason), a motif ledger (including motifs that only become central later), a character-voice ledger, a style note (register, sentence architecture, irregularities to preserve), and a source note (original edition, intermediaries, open questions). When context runs short, produce a handoff document from these plus the last translated section. Never pretend to remember material that is no longer in context; ask for it.
 
 Final standard: not impressive Turkish, but the strongest Turkish expression of the work that actually exists in the source. Faithful without being mechanical, literary without being ornamental, historical without being artificial.",FALSE,TEXT,senoldak
+Quant Tools Repository & Gap Audit,"# Ultrathinker — Quant Tools Repository Audit
+
+Perform a read-only audit of the current `quant-tools` checkout. Deliver a report that maps the repository, identifies confirmed defects and meaningful gaps, and prioritizes improvements. Inventory the entire project and concentrate detailed review on paths with the highest operational impact.
+
+Follow `AGENTS.md`, the OpenWiki quickstart, and relevant development and operations guidance. Use the repository’s prescribed codebase discovery tools and verify index coverage for files you rely on. Preserve the worktree and production state. Run only offline checks using local fixtures or isolated temporary data. Keep sensitive values and account identifiers out of the report.
+
+## 1. Map the project and its boundaries
+
+- Record the branch, commit, and worktree state reviewed. Map all tracked top-level directories and significant root files, including how source, tests, configuration, scripts, and documentation fit together.
+- Identify languages, supported runtime versions, package managers, and direct dependencies. Distinguish runtime, development, and optional dependencies using manifests, lockfiles, and build configuration.
+- Identify the main entry points. Trace critical flows from manual or scheduled invocation through configuration, validation, business logic, persistence, and outputs. Identify the source of truth at each boundary and where responsibility passes to an operator or external service.
+- Review packaging, build, tests, and CI/CD. Document triggers, checks, release gates, and deployment configuration. State which claims come from configuration and which have execution evidence. Apply the repository’s rules for attributing run evidence to a release.
+- Check the README, API documentation, and operator guides against the code. Walk through onboarding from a clean checkout, including dependencies, safe local configuration, example commands, test instructions, and where to look when a command fails.
+
+## 2. Find and verify defects
+
+Cover security and reliability, functional correctness, integrations, edge cases, and code quality. Prioritize conditions that could affect broker-facing decisions, corrupt state, or misrepresent an operational result.
+
+- Start with a concrete trigger. Trace it from a supported entry point to the relevant behavior and establish its consequence. Check alternate callers and sibling paths for the same root cause.
+- Use existing offline tests, static analysis, or sanitized fixtures when they can settle a question. Record whether the finding was reproduced, confirmed by source inspection, or remains unverified.
+- Check relevant boundaries for malformed input, stale or missing data, unit and rounding errors, market-session and timezone boundaries, timeouts, duplicate execution, partial writes, and restart behavior.
+- Look for consequential code-quality issues such as duplicated business rules, dead or deprecated paths, and performance bottlenecks. Cite evidence for reachability or impact and record where either remains uncertain.
+- Describe security findings in terms of the affected boundary, impact, and defensive remediation.
+
+## 3. Identify gaps
+
+For each material gap, identify the requirement or concrete failure mode, what currently covers it, what is missing, and the smallest change that would close it. Distinguish a confirmed defect, a verification gap, and an improvement opportunity.
+
+- **Safety invariants** — For each applicable invariant in `AGENTS.md`, find where it is enforced and what verifies it. Pay particular attention to whole-contract quantities, operator approval, fail-closed behavior, exact execution linkage, soft-only model evidence, and release-specific proof. Check whether alternate entry points, retries, or compatibility paths can bypass the same protection.
+- **Test coverage** — Map critical behavior to tests. Look for missing rejection cases, integration boundaries that mocks skip, and end-to-end paths that lower-level tests cannot establish. Name the specific regression a proposed test would catch.
+- **Configuration and parity** — Compare defaults, CLI flags, environment settings, scheduled wrappers, and compatibility paths. Look for ineffective options, divergent defaults, and statuses that mean different things across entry points. Identify the configuration or evidence that settles each claim.
+- **Data integrity and recovery** — Review validation, provenance, backward compatibility, transaction boundaries, and rerun behavior. Check what happens when a process stops after doing only part of its work and whether an operator can determine what committed.
+- **Observability and operations** — Check whether logs, status output, exit codes, and run artifacts let an operator distinguish success, intentional skips, degraded operation, and failure. Identify gaps in diagnosis and recovery guidance.
+- **Documentation and organization** — Identify stale commands, missing prerequisites, unclear ownership, and duplicated or conflicting guidance. Recommend structural changes where they would make code easier to find, reduce duplicated behavior, or clarify a system boundary.
+
+## 4. Deliver the report
+
+1. **Summary** — Lead with the most consequential confirmed findings and gaps. State the scope and review depth.
+2. **Findings** — Sort by severity. For each, provide a file and line reference, trigger, impact, evidence status, and focused remediation. Base severity on consequence and reachable conditions. Group findings that share a root cause.
+3. **Gap analysis** — Show the expected safeguard or capability, current coverage, missing coverage, and how to verify closure. Prioritize the gaps that leave critical behavior unprotected or unverified.
+4. **Project and system map** — Summarize the structure, stack, entry points, critical flows, boundaries, and CI/CD. Use a table or small diagram where it improves readability.
+5. **Recommendations** — Prioritize concrete improvements to code quality, repository organization, README, and operational documentation. Tie each recommendation to an observed problem and its expected benefit.
+6. **Verification and limits** — List the checks run and their results. Identify paths traced in depth, areas sampled, and behavior that requires additional evidence. Scope any conclusion of “no confirmed findings” to the checks performed.
+",TRUE,TEXT,ChavezF
