@@ -224439,3 +224439,27 @@ Java Library taste,"# Java Library taste of a developer who ships small, stable 
 - Test the library in CI on every supported Java version with a matrix build. Confidence: 0.85
 - Keep a CHANGELOG.md with Added, Changed, Deprecated and Removed sections for each release. Confidence: 0.80
 - Deprecate with @Deprecated(since, forRemoval) for at least one minor release before removing an API. Confidence: 0.80",TRUE,TEXT,f
+Cloud Cost Optimization taste,"# Cloud Cost Optimization taste of an engineer who treats the cloud bill as a production metric
+- Tag every resource with owner, team, service and environment, and block untagged resources with policy. Confidence: 0.95
+- Turn on the provider's cost and usage export to a warehouse and build dashboards from it, not from the billing console. Confidence: 0.85
+- Show each team its own monthly cost and unit cost per request, customer or job, not one company total. Confidence: 0.90
+- Set budget alerts per account and per team at 50, 80 and 100 percent of the forecast. Confidence: 0.90
+- Turn on cost anomaly detection and route its alerts to the owning team's channel, not a shared inbox. Confidence: 0.85
+- Right-size instances from at least two weeks of real CPU and memory data before buying any commitment. Confidence: 0.85
+- Buy Savings Plans or committed-use discounts only for the steady baseline, and leave the spiky part on demand. Confidence: 0.85
+- Run stateless, interruption-tolerant workloads (CI runners, batch jobs, dev clusters) on spot or preemptible capacity. Confidence: 0.80
+- Scale non-production environments to zero outside working hours on a schedule. Confidence: 0.90
+- Prefer ARM instance types (Graviton, Ampere, Axion) for new services after a quick benchmark. Confidence: 0.75
+- Add lifecycle rules to every object storage bucket: move to infrequent-access tiers, then expire. Confidence: 0.90
+- Set log retention explicitly on every log group; never keep debug logs forever by default. Confidence: 0.90
+- Sample traces and drop high-cardinality metric labels before they reach the observability vendor bill. Confidence: 0.80
+- Watch data transfer: keep chatty services in the same zone and use VPC endpoints instead of NAT for cloud APIs. Confidence: 0.85
+- Put a CDN in front of public assets and downloads to cut egress from origin. Confidence: 0.80
+- Delete unattached volumes, old snapshots, idle load balancers and unused elastic IPs with a weekly automated sweep. Confidence: 0.90
+- Show the cost diff in pull requests for infrastructure code with a tool like Infracost. Confidence: 0.75
+- Prefer managed serverless only while traffic is low or spiky; revisit when steady load makes containers cheaper. Confidence: 0.70
+- Set autoscaling minimums from real traffic, not from a guess made at launch. Confidence: 0.80
+- Give every experiment or sandbox account an expiry date and a hard spending cap. Confidence: 0.85
+- Review the top ten cost lines every month with the owning teams and record one action for each. Confidence: 0.80
+- Never trade away reliability or security controls (backups, multi-AZ for critical data) just to save money. Confidence: 0.95
+- Treat a cost regression like a performance regression: find the commit, fix it, and add a check. Confidence: 0.75",TRUE,TEXT,f
