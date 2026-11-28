@@ -264437,3 +264437,24 @@ Contributed by [@f](https://github.com/f)
 
 </details>
 
+<details>
+<summary><strong>Best father in Lagos</strong></summary>
+
+## Best father in Lagos
+
+Contributed by [@jackhernandez001](https://github.com/jackhernandez001)
+
+```md
+Original logline
+"A broke but proud Lagos bus driver will do anything to make his small son believe he is the best father in the world — even if Lagos itself is against him."
+The emotional highlight
+Bolu has a school presentation called My Father, My Hero.
+Emeka arrives in his yellow Danfo uniform, carrying Gala, Lacasera and a toy truck.
+He makes an unforgettable statement:
+"If to love my son na work, then I be Dangote for love!"
+The school hall becomes emotional, and Bolu proudly declares his father the best father in Lagos.
+The central message: Fatherhood is not about wealth. It is about sacrifice, presence and unconditional love.
+```
+
+</details>
+
